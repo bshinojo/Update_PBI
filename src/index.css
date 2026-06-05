@@ -1,0 +1,133 @@
+/*
+  REGLAS DE LA ESTÉTICA FLAT (cumplir siempre):
+  - Separación con bordes de 1px y espacio en blanco; NUNCA box-shadow decorativa.
+  - Sin gradientes; fondos planos.
+  - Selección = tinte de fondo sutil + borde acento a la izquierda, no elevación.
+  - Foco visible con outline, no con glow.
+  - Bordes redondeados como mucho var(--radius).
+  - La única animación de la app es el spinner.
+*/
+
+:root {
+  /* Colores */
+  --color-bg: #f7f7f8;
+  --color-surface: #ffffff;
+  --color-border: #e4e4e7;
+  --color-border-strong: #cfcfd4;
+  --color-text: #18181b;
+  --color-muted: #6b7280;
+  --color-faint: #9ca3af;
+  --color-accent: #2563eb;
+  --color-accent-weak: #eef3ff;
+  --color-selected-bg: #f4f7ff;
+  --color-ok: #16a34a;
+  --color-fail: #dc2626;
+  --color-progress: #6b7280;
+  --color-danger: #dc2626;
+  --color-danger-weak: #fef2f2;
+  --color-disabled-bg: #f4f4f5;
+
+  /* Tipografía */
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-base: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+
+  /* Espaciado */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius: 4px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  line-height: 1.45;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Botón base reutilizable (flat). */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-base);
+  line-height: 1;
+}
+
+.btn:hover:not(:disabled) {
+  background: #fafafa;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1d4fd8;
+}
+
+.btn-danger {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-surface);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-danger-weak);
+}

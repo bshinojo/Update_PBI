@@ -1,0 +1,16 @@
+.indicator {
+  display: inline-flex;
+  align-items: center;
+}
+.none {
+  color: var(--color-faint);
+}
+.ok {
+  color: var(--color-ok);
+}
+.fail {
+  color: var(--color-fail);
+}
+.progress {
+  color: var(--color-progress);
+}
