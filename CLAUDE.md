@@ -108,15 +108,20 @@ un backend real con latencia.
   delays 300–600ms, fallos opcionales con `VITE_MOCK_FAIL=1`.
 - `npm run typecheck` y `npm run build` limpios. Build estático servible por nginx
   (`nginx.example.conf` incluido). Verificado en navegador real (drill-down, modal, badges).
+- **Backend FastAPI (etapa A, ver §6.A): implementado en `backend/`.** Los 8 endpoints del
+  contrato, JSON camelCase idéntico a `types.ts` (sin mapeo en `http-client.ts`), persistencia
+  en archivo JSON, reasignación + invariante portados de `store.ts`, credenciales de Power BI
+  por `.env`. Modo `seed` por defecto (corre sin credenciales). Probado de punta a punta con
+  `TestClient` y con uvicorn real. **Falta probar la integración Power BI con credenciales reales.**
 
 ---
 
 ## 6. Lo que FALTA (próximos pasos, en orden)
 
-### A) Backend FastAPI — prioridad
+### A) Backend FastAPI — ✅ HECHO (en `backend/`), salvo la verificación con credenciales
 
-Implementar el contrato `ScheduleApi` (ver `src/api/client.ts`). El stub
-`src/api/http/http-client.ts` ya espera estos endpoints (baseUrl por defecto `/api`):
+Implementa el contrato `ScheduleApi` (ver `src/api/client.ts`). El stub
+`src/api/http/http-client.ts` espera estos endpoints (baseUrl por defecto `/api`):
 
 | Método | Endpoint | Body | Devuelve |
 |---|---|---|---|
@@ -129,18 +134,30 @@ Implementar el contrato `ScheduleApi` (ver `src/api/client.ts`). El stub
 | PUT | `/schedules/{id}/enabled` | `{ enabled }` | `ScheduleMutationResult` |
 | DELETE | `/schedules/{id}` | — | `ScheduleMutationResult` |
 
-Pasos:
-1. Definir los modelos Pydantic espejando `src/api/types.ts` (la `Frequency` es una unión
-   discriminada por `kind`; `time` lo deriva el backend con la lógica de `scheduleTime`, no lo
-   manda el cliente). Si el backend usa snake_case, mapear en `http-client.ts`.
-2. Implementar la misma lógica de **reasignación** y el invariante "cada schedule tiene ≥1 tabla"
-   que hoy vive en `src/api/mock/store.ts` (es la referencia funcional).
-3. Integrar con **Power BI**: listar workspaces/datasets/tablas vía REST API; ejecutar el
-   refresh selectivo vía enhanced refresh API (lista de tablas + `refreshType`).
-4. Completar `HttpScheduleApi`, poner `VITE_API_MODE=http`. **Ningún componente cambia.**
+Cómo quedó (ver `backend/README.md` para correr/deployar):
+- **`backend/app/models.py`**: modelos Pydantic espejando `types.ts`, serializados en camelCase
+  (`alias_generator`), `Frequency` como unión discriminada por `kind`. El `time` lo deriva el
+  backend (`frequency.py`), no lo manda el cliente. **No hace falta mapear nada en `http-client.ts`.**
+- **`backend/app/store.py`**: reasignación + invariante "cada schedule ≥1 tabla" (port fiel de
+  `store.ts`), persistido en archivo JSON (`PBI_DB_PATH`, escritura atómica). Diferencia de diseño:
+  las tablas NO guardan `scheduleId`; el universo de tablas lo da el `DataSource` y el `scheduleId`
+  se DERIVA de los schedules en cada respuesta (sirve igual para seed y para Power BI).
+- **`backend/app/datasource.py` + `powerbi/client.py`**: lecturas desde seed (default, sin
+  credenciales) o desde Power BI (REST API + token client-credentials). El `PowerBIClient` ya
+  tiene `refresh_dataset()` (enhanced refresh selectivo) listo para el scheduler.
+- **Credenciales por `.env`** (prefijo `PBI_`, ver `backend/.env.example`): `PBI_DATA_SOURCE=seed|powerbi`,
+  `PBI_TENANT_ID/CLIENT_ID/CLIENT_SECRET`, etc. Cambiar credenciales = editar `.env` y reiniciar.
 
-### B) Scheduler / ejecución real
-- Cron/worker que dispare cada schedule habilitado a su hora (ART) y registre `lastRun`.
+Para activarlo end-to-end: levantar el backend, poner `VITE_API_MODE=http` en el front, y
+proxyear `/api/` → backend en nginx. **Ningún componente del front cambia.**
+
+> ⚠️ Sin credenciales todavía no se pudo probar la integración real con Power BI. Revisar sobre
+> todo `PowerBIClient.list_tables` (usa DAX `INFO.VIEW.TABLES()`; requiere XMLA/ejecución de
+> consultas habilitado en la capacidad) cuando haya un service principal de verdad.
+
+### B) Scheduler / ejecución real — próximo paso
+- Cron/worker que recorra los schedules habilitados, los dispare a su hora (ART) con
+  `PowerBIClient.refresh_dataset()` (ya implementado) y registre `lastRun`.
 
 ### C) Mejoras conocidas (opcionales)
 - **"En curso" estático**: hoy las corridas sembradas en InProgress no se auto-resuelven (es un
