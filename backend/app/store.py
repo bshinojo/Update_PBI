@@ -16,6 +16,7 @@ from .datasource import DataSource
 from .frequency import schedule_time
 from .models import (
     CreateScheduleInput,
+    LastRun,
     Schedule,
     ScheduleMutationResult,
     TableInfo,
@@ -112,6 +113,22 @@ class ScheduleStore:
     def list_tables(self, dataset_id: str) -> list[TableInfo]:
         with self._lock:
             return self._tables_with_schedule(dataset_id)
+
+    def all_enabled_schedules(self) -> list[Schedule]:
+        """Copia de todos los schedules habilitados (la usa el scheduler)."""
+        with self._lock:
+            return [s.model_copy(deep=True) for s in self._schedules if s.enabled]
+
+    def set_last_run(self, schedule_id: str, last_run: LastRun) -> bool:
+        """Registra el resultado del último run. Devuelve False si el schedule ya no
+        existe (pudo borrarse entre que el scheduler lo leyó y lo intentó actualizar)."""
+        with self._lock:
+            for sch in self._schedules:
+                if sch.id == schedule_id:
+                    sch.last_run = last_run
+                    self._save()
+                    return True
+            return False
 
     # --- Escrituras ---
 

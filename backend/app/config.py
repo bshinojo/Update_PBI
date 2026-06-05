@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     # Archivo donde se persisten los schedules (relativo al cwd o absoluto).
     db_path: str = "schedules.json"
 
+    # --- Scheduler (etapa B) ---
+    # Si está activo, un worker en segundo plano dispara los schedules a su hora.
+    scheduler_enabled: bool = True
+    # Cada cuántos segundos el worker revisa si hay schedules vencidos.
+    scheduler_tick_seconds: int = 30
+    # Offset fijo de la zona horaria de los horarios (ART = UTC-3, sin DST).
+    tz_offset_hours: int = -3
+
     @property
     def powerbi_enabled(self) -> bool:
         return self.data_source.strip().lower() == "powerbi"

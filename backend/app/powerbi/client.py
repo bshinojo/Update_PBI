@@ -117,11 +117,20 @@ class PowerBIClient:
 
     # --- Ejecución (la usará el scheduler en la etapa B) ---
 
-    def refresh_dataset(self, dataset_id: str, tables: list[str], refresh_type: str) -> None:
-        """Dispara un enhanced refresh selectivo (lista de tablas + tipo)."""
+    def refresh_dataset(
+        self,
+        dataset_id: str,
+        tables: list[str],
+        refresh_type: str,
+        group_id: str | None = None,
+    ) -> None:
+        """Dispara un enhanced refresh selectivo (lista de tablas + tipo). Si se pasa
+        `group_id` (el workspace del dataset) usa la ruta con grupo, que es la que
+        corresponde para datasets que no están en "Mi área de trabajo"."""
         body = {
             "type": _REFRESH_TYPE_MAP.get(refresh_type, "full"),
             "commitMode": "transactional",
             "objects": [{"table": t} for t in tables],
         }
-        self._request("POST", f"/datasets/{dataset_id}/refreshes", json=body)
+        prefix = f"/groups/{group_id}" if group_id else ""
+        self._request("POST", f"{prefix}/datasets/{dataset_id}/refreshes", json=body)

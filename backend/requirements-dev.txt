@@ -1,0 +1,3 @@
+# Dependencias solo para correr los tests. En producción no hacen falta.
+-r requirements.txt
+pytest>=8.0

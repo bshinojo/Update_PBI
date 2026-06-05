@@ -113,6 +113,10 @@ un backend real con latencia.
   en archivo JSON, reasignación + invariante portados de `store.ts`, credenciales de Power BI
   por `.env`. Modo `seed` por defecto (corre sin credenciales). Probado de punta a punta con
   `TestClient` y con uvicorn real. **Falta probar la integración Power BI con credenciales reales.**
+- **Scheduler (etapa B, ver §6.B): implementado en `backend/`.** Worker en segundo plano que
+  dispara los schedules a su hora (ART) y registra `lastRun`. Lógica de "próxima corrida" pura y
+  testeada (`nextrun.py`), ejecutores seed/powerbi, suite `pytest` (19 tests, todo verde sin
+  credenciales). **Falta el polling del refresh asíncrono real de Power BI.**
 
 ---
 
@@ -155,9 +159,24 @@ proxyear `/api/` → backend en nginx. **Ningún componente del front cambia.**
 > todo `PowerBIClient.list_tables` (usa DAX `INFO.VIEW.TABLES()`; requiere XMLA/ejecución de
 > consultas habilitado en la capacidad) cuando haya un service principal de verdad.
 
-### B) Scheduler / ejecución real — próximo paso
-- Cron/worker que recorra los schedules habilitados, los dispare a su hora (ART) con
-  `PowerBIClient.refresh_dataset()` (ya implementado) y registre `lastRun`.
+### B) Scheduler / ejecución real — ✅ HECHO (en `backend/`), salvo el polling real de Power BI
+
+Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para con el
+`lifespan`, comparte el store en memoria → uvicorn con 1 worker):
+- **`backend/app/nextrun.py`**: lógica PURA de "próxima corrida" en ART (diario, semanal por
+  días JS, mensual con "último día", horario cada N horas ancladas a medianoche).
+- **`backend/app/scheduler.py`**: `tick(now)` (puro respecto del reloj, fácil de testear) revisa
+  los schedules habilitados vencidos, dispara, y registra `lastRun` (`InProgress`→`Completed/Failed`).
+  Un hilo daemon llama `tick()` cada `PBI_SCHEDULER_TICK_SECONDS`.
+- **`backend/app/executor.py`**: en modo `seed` loguea (simula éxito, testeable sin credenciales);
+  en `powerbi` llama a `PowerBIClient.refresh_dataset()`.
+- Config: `PBI_SCHEDULER_ENABLED` (default true), `PBI_SCHEDULER_TICK_SECONDS` (30), `PBI_TZ_OFFSET_HOURS` (-3).
+- **Tests** (`backend/tests/`, `pip install -r requirements-dev.txt && pytest`): `nextrun` (todas las
+  frecuencias y bordes), scheduler con reloj controlado + executor falso, y los 8 endpoints.
+
+> ⚠️ El refresh real de Power BI es ASÍNCRONO: hoy marcamos `Completed` apenas el disparo
+> devuelve OK. Con credenciales habría que **pollear** el estado del refresh para resolver
+> `InProgress` → `Completed/Failed` de verdad (ver nota en `backend/README.md`).
 
 ### C) Mejoras conocidas (opcionales)
 - **"En curso" estático**: hoy las corridas sembradas en InProgress no se auto-resuelven (es un
