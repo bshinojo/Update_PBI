@@ -157,9 +157,15 @@ Cómo quedó (ver `backend/README.md` para correr/deployar):
   tiene `refresh_dataset()` (enhanced refresh selectivo) listo para el scheduler.
 - **Credenciales por `.env`** (prefijo `PBI_`, ver `backend/.env.example`): `PBI_DATA_SOURCE=seed|powerbi`,
   `PBI_TENANT_ID/CLIENT_ID/CLIENT_SECRET`, etc. Cambiar credenciales = editar `.env` y reiniciar.
+- **Las rutas usan `response_model_exclude_none`**: omiten `scheduleId`/`lastRun`/`affected` cuando
+  son `None`, así el JSON es idéntico al del mock (campos opcionales TS `?` ausentes). El front los
+  trata por truthiness en ambos casos.
 
-Para activarlo end-to-end: levantar el backend, poner `VITE_API_MODE=http` en el front, y
-proxyear `/api/` → backend en nginx. **Ningún componente del front cambia.**
+**Modo http ya cableado y VERIFICADO end-to-end** (sin navegador): se ejecutó el `HttpScheduleApi`
+real (bundle esbuild) contra FastAPI corriendo — 12/12 (lecturas, crear/editar/pausar/eliminar,
+reasignación, error 404, camelCase). En DEV: `cd backend && ./run.sh` + `VITE_API_MODE=http npm run dev`
+(Vite proxya `/api`→backend, ver `vite.config.ts`). En PROD: nginx proxya `/api/`→backend.
+**Ningún componente del front cambia.**
 
 > ⚠️ Sin credenciales todavía no se pudo probar la integración real con Power BI. Revisar sobre
 > todo `PowerBIClient.list_tables` (usa DAX `INFO.VIEW.TABLES()`; requiere XMLA/ejecución de

@@ -1,5 +1,8 @@
 # Los 8 endpoints del contrato ScheduleApi (ver src/api/client.ts y CLAUDE.md §6.A).
 # Las respuestas salen en camelCase (alias) para que HttpScheduleApi no mapee nada.
+# response_model_exclude_none: omitimos los campos None (scheduleId, lastRun, affected)
+# para que el JSON sea idéntico al del mock, donde esos campos son opcionales (TS `?`)
+# y van ausentes cuando no aplican. El front los trata por truthiness en ambos casos.
 from fastapi import APIRouter, Depends, HTTPException
 
 from .datasource import DataSource
@@ -29,22 +32,38 @@ def list_datasets(workspace_id: str, ds: DataSource = Depends(get_datasource)):
     return ds.list_datasets(workspace_id)
 
 
-@router.get("/datasets/{dataset_id}/tables", response_model=list[TableInfo])
+@router.get(
+    "/datasets/{dataset_id}/tables",
+    response_model=list[TableInfo],
+    response_model_exclude_none=True,
+)
 def list_tables(dataset_id: str, store: ScheduleStore = Depends(get_store)):
     return store.list_tables(dataset_id)
 
 
-@router.get("/datasets/{dataset_id}/schedules", response_model=list[Schedule])
+@router.get(
+    "/datasets/{dataset_id}/schedules",
+    response_model=list[Schedule],
+    response_model_exclude_none=True,
+)
 def list_schedules(dataset_id: str, store: ScheduleStore = Depends(get_store)):
     return store.list_schedules(dataset_id)
 
 
-@router.post("/schedules", response_model=ScheduleMutationResult)
+@router.post(
+    "/schedules",
+    response_model=ScheduleMutationResult,
+    response_model_exclude_none=True,
+)
 def create_schedule(body: CreateScheduleInput, store: ScheduleStore = Depends(get_store)):
     return store.create(body)
 
 
-@router.patch("/schedules/{schedule_id}", response_model=ScheduleMutationResult)
+@router.patch(
+    "/schedules/{schedule_id}",
+    response_model=ScheduleMutationResult,
+    response_model_exclude_none=True,
+)
 def update_schedule(schedule_id: str, body: UpdateScheduleInput,
                     store: ScheduleStore = Depends(get_store)):
     try:
@@ -53,7 +72,11 @@ def update_schedule(schedule_id: str, body: UpdateScheduleInput,
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.put("/schedules/{schedule_id}/enabled", response_model=ScheduleMutationResult)
+@router.put(
+    "/schedules/{schedule_id}/enabled",
+    response_model=ScheduleMutationResult,
+    response_model_exclude_none=True,
+)
 def set_enabled(schedule_id: str, body: SetEnabledInput,
                 store: ScheduleStore = Depends(get_store)):
     try:
@@ -62,7 +85,11 @@ def set_enabled(schedule_id: str, body: SetEnabledInput,
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.delete("/schedules/{schedule_id}", response_model=ScheduleMutationResult)
+@router.delete(
+    "/schedules/{schedule_id}",
+    response_model=ScheduleMutationResult,
+    response_model_exclude_none=True,
+)
 def delete_schedule(schedule_id: str, store: ScheduleStore = Depends(get_store)):
     try:
         return store.delete(schedule_id)

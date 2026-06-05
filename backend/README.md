@@ -27,9 +27,10 @@ cp .env.example .env             # opcional; por defecto corre en modo "seed"
 # docs interactivas: http://127.0.0.1:8000/docs
 ```
 
-Apuntá el frontend al backend con `VITE_API_MODE=http`. El `HttpScheduleApi` usa
-`baseUrl='/api'` por defecto; en dev, o servís el front detrás de un proxy a `/api`,
-o ajustás el `baseUrl` a `http://localhost:8000`.
+Apuntá el frontend al backend con `VITE_API_MODE=http npm run dev` (en la raíz del repo).
+El `HttpScheduleApi` usa `baseUrl='/api'` y Vite proxya `/api` → este backend en `:8000`
+(ver `vite.config.ts`; override con `VITE_API_PROXY_TARGET`). En prod nginx hace el mismo
+proxy. Verificado end-to-end: el `HttpScheduleApi` real corre contra esta API sin cambios.
 
 ## Configuración (`.env`, prefijo `PBI_`)
 

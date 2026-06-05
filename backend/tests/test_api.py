@@ -71,7 +71,8 @@ def test_enabled_and_delete(client):
     nid = res["affected"]["id"]
     assert client.put(f"/schedules/{nid}/enabled", json={"enabled": False}).json()["affected"]["enabled"] is False
     dres = client.delete(f"/schedules/{nid}").json()
-    assert "affected" in dres and dres["affected"] is None  # presente y null
+    # affected omitido cuando es null (igual que el mock; el front lo trata por truthiness).
+    assert dres.get("affected") is None
     tabs = {t["name"]: t.get("scheduleId") for t in dres["tables"]}
     assert tabs["Defectos"] is None
 
