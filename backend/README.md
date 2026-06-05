@@ -103,14 +103,24 @@ habilitados vencieron, los dispara y registra el `lastRun` (`InProgress` → `Co
 - **Cuándo vence cada frecuencia** lo calcula `app/nextrun.py` (lógica pura, en ART/UTC-3):
   diario, semanal (días JS), mensual (incluye "último día"), y horario (cada N horas ancladas
   a la medianoche).
-- **Quién ejecuta el refresh** lo decide `app/executor.py`: en modo `seed` solo loguea (simula
-  éxito, sirve para probar sin credenciales); en modo `powerbi` llama a
-  `PowerBIClient.refresh_dataset()` (enhanced refresh selectivo).
+- **Quién ejecuta el refresh** lo decide `app/executor.py`, con un protocolo de dos fases
+  (`start` / `poll`) porque el refresh real es **asíncrono**:
+  - `start(schedule)` dispara y devuelve un token para pollear (o `None` si el resultado ya es
+    final: seed instantáneo, o Power BI sin id).
+  - `poll(schedule, token)` consulta el estado y devuelve `InProgress` / `Completed` / `Failed`.
+  - En modo `seed` es instantáneo por defecto; con `PBI_SEED_SIMULATE_REFRESH_TICKS > 0` simula
+    un refresh que tarda N polls (para ver el "En curso" progresar en la demo). En modo `powerbi`
+    usa `PowerBIClient.refresh_dataset()` (devuelve el `refreshId`) y `get_refresh_status()`.
+- **Polling**: cada tick, además de disparar los vencidos, el scheduler pollea los refreshes en
+  vuelo y resuelve `InProgress → Completed/Failed`. Un schedule con un refresh en curso no se
+  re-dispara hasta que termine. Si un refresh excede `PBI_REFRESH_POLL_TIMEOUT_MIN` se marca
+  `Failed` (anti-colgados).
 - Como API y scheduler comparten el store en memoria, **correr uvicorn con UN worker**
   (`--workers 1`, default). Apagar el worker: `PBI_SCHEDULER_ENABLED=0`.
 
 Config relacionada: `PBI_SCHEDULER_ENABLED` (default `true`), `PBI_SCHEDULER_TICK_SECONDS`
-(default `30`), `PBI_TZ_OFFSET_HOURS` (default `-3`).
+(`30`), `PBI_TZ_OFFSET_HOURS` (`-3`), `PBI_REFRESH_POLL_TIMEOUT_MIN` (`120`),
+`PBI_SEED_SIMULATE_REFRESH_TICKS` (`0`).
 
 ### Tests
 
@@ -120,7 +130,8 @@ pytest                 # nextrun + scheduler (reloj controlado) + endpoints
 ```
 
 > Nota: `PowerBIClient` sigue la documentación oficial pero **no se pudo probar contra el
-> servicio real** (sin credenciales todavía). Revisar especialmente `list_tables` (usa DAX
-> `INFO.VIEW.TABLES()`; requiere XMLA/ejecución de consultas habilitado en la capacidad) y el
-> ciclo real del refresh (es asíncrono: hoy marcamos `Completed` al disparar OK; con Power BI
-> habría que **pollear** el estado del refresh para resolver `InProgress` → `Completed/Failed`).
+> servicio real** (sin credenciales todavía). La lógica de disparo + polling está testeada con
+> un cliente falso; lo que falta confirmar contra Power BI real es: (1) `list_tables` (usa DAX
+> `INFO.VIEW.TABLES()`; requiere XMLA/ejecución de consultas habilitado), (2) de qué header sale
+> el `refreshId` del enhanced refresh (`Location` / `x-ms-request-id`) y (3) los strings de estado
+> (`Unknown`/`Completed`/`Failed`/...). Son ajustes de nombres en un solo archivo (`powerbi/client.py`).

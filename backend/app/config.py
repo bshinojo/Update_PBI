@@ -41,10 +41,17 @@ class Settings(BaseSettings):
     # --- Scheduler (etapa B) ---
     # Si está activo, un worker en segundo plano dispara los schedules a su hora.
     scheduler_enabled: bool = True
-    # Cada cuántos segundos el worker revisa si hay schedules vencidos.
+    # Cada cuántos segundos el worker revisa si hay schedules vencidos y pollea los
+    # refreshes en vuelo.
     scheduler_tick_seconds: int = 30
     # Offset fijo de la zona horaria de los horarios (ART = UTC-3, sin DST).
     tz_offset_hours: int = -3
+    # Tope para un refresh "en curso": pasado este tiempo sin terminar, se marca
+    # Failed (evita que un refresh colgado quede InProgress para siempre).
+    refresh_poll_timeout_min: int = 120
+    # Solo modo seed: si > 0, simula refreshes que tardan N polls en completar (para
+    # ver el "En curso" progresar en la demo). 0 = éxito instantáneo.
+    seed_simulate_refresh_ticks: int = 0
 
     @property
     def powerbi_enabled(self) -> bool:

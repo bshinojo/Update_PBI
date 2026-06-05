@@ -120,9 +120,11 @@ un backend real con latencia.
   por `.env`. Modo `seed` por defecto (corre sin credenciales). Probado de punta a punta con
   `TestClient` y con uvicorn real. **Falta probar la integración Power BI con credenciales reales.**
 - **Scheduler (etapa B, ver §6.B): implementado en `backend/`.** Worker en segundo plano que
-  dispara los schedules a su hora (ART) y registra `lastRun`. Lógica de "próxima corrida" pura y
-  testeada (`nextrun.py`), ejecutores seed/powerbi, suite `pytest` (19 tests, todo verde sin
-  credenciales). **Falta el polling del refresh asíncrono real de Power BI.**
+  dispara los schedules a su hora (ART), **pollea** los refreshes asíncronos en vuelo y registra
+  `lastRun` (`InProgress`→`Completed/Failed`, con timeout anti-colgados). Lógica de "próxima
+  corrida" pura y testeada (`nextrun.py`), executor con protocolo `start`/`poll`, suite `pytest`
+  (28 tests, todo verde sin credenciales). **Falta verificar contra Power BI real** (nombres de
+  header/estado del refresh, ver §6.B).
 
 ---
 
@@ -177,23 +179,31 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
 `lifespan`, comparte el store en memoria → uvicorn con 1 worker):
 - **`backend/app/nextrun.py`**: lógica PURA de "próxima corrida" en ART (diario, semanal por
   días JS, mensual con "último día", horario cada N horas ancladas a medianoche).
-- **`backend/app/scheduler.py`**: `tick(now)` (puro respecto del reloj, fácil de testear) revisa
-  los schedules habilitados vencidos, dispara, y registra `lastRun` (`InProgress`→`Completed/Failed`).
-  Un hilo daemon llama `tick()` cada `PBI_SCHEDULER_TICK_SECONDS`.
-- **`backend/app/executor.py`**: en modo `seed` loguea (simula éxito, testeable sin credenciales);
-  en `powerbi` llama a `PowerBIClient.refresh_dataset()`.
-- Config: `PBI_SCHEDULER_ENABLED` (default true), `PBI_SCHEDULER_TICK_SECONDS` (30), `PBI_TZ_OFFSET_HOURS` (-3).
+- **`backend/app/scheduler.py`**: `tick(now)` (puro respecto del reloj, fácil de testear) (1)
+  dispara los schedules vencidos y (2) **pollea los refreshes en vuelo** resolviendo
+  `InProgress`→`Completed/Failed`. Lleva un dict de pendientes (`scheduleId→{token,started_at,
+  snapshot}`); un schedule con refresh en curso no se re-dispara hasta terminar; si supera
+  `PBI_REFRESH_POLL_TIMEOUT_MIN` se marca `Failed`. Un hilo daemon llama `tick()` cada `PBI_SCHEDULER_TICK_SECONDS`.
+- **`backend/app/executor.py`**: protocolo de dos fases `start(schedule)->token|None` y
+  `poll(schedule,token)->RunStatus` (el refresh real es asíncrono). Seed: instantáneo por
+  defecto, o simula N polls con `PBI_SEED_SIMULATE_REFRESH_TICKS`. PowerBI:
+  `refresh_dataset()` (devuelve `refreshId`) + `get_refresh_status()`; `_map_status` traduce el
+  estado de PBI a `RunStatus`.
+- Config: `PBI_SCHEDULER_ENABLED` (true), `PBI_SCHEDULER_TICK_SECONDS` (30), `PBI_TZ_OFFSET_HOURS`
+  (-3), `PBI_REFRESH_POLL_TIMEOUT_MIN` (120), `PBI_SEED_SIMULATE_REFRESH_TICKS` (0).
 - **Tests** (`backend/tests/`, `pip install -r requirements-dev.txt && pytest`): `nextrun` (todas las
-  frecuencias y bordes), scheduler con reloj controlado + executor falso, y los 8 endpoints.
+  frecuencias y bordes), scheduler con reloj controlado + executor falso (disparo, polling
+  InProgress→Completed/Failed, timeout, no re-disparo en vuelo), executor (mapeo de estados +
+  delegación al cliente con cliente falso), y los 8 endpoints. 28 tests, todo verde sin credenciales.
 
-> ⚠️ El refresh real de Power BI es ASÍNCRONO: hoy marcamos `Completed` apenas el disparo
-> devuelve OK. Con credenciales habría que **pollear** el estado del refresh para resolver
-> `InProgress` → `Completed/Failed` de verdad (ver nota en `backend/README.md`).
+> ⚠️ Falta verificar contra Power BI real (sin credenciales aún): de qué header sale el `refreshId`
+> (`Location`/`x-ms-request-id`) y los strings de estado del refresh. Son ajustes de nombres en
+> `powerbi/client.py`; la lógica de polling ya está testeada.
 
 ### C) Mejoras conocidas (opcionales)
-- **"En curso" estático**: hoy las corridas sembradas en InProgress no se auto-resuelven (es un
-  estado de demo del mock). Con backend real progresan solas; si se quiere en el mock, requiere
-  una suscripción/poll del store.
+- **"En curso" estático del MOCK**: las corridas sembradas en InProgress del mock no se
+  auto-resuelven (es un estado de demo del front). Con el backend real progresan solas; en seed se
+  puede ver con `PBI_SEED_SIMULATE_REFRESH_TICKS>0`.
 - **Autenticación** (login, sesión) — explícitamente fuera de alcance de la etapa 1.
 - Updates optimistas, edición del set de tablas desde el modal de edición, "select-all" ya está.
 

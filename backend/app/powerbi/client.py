@@ -70,7 +70,7 @@ class PowerBIClient:
     def _get(self, path: str) -> Any:
         return self._request("GET", path)
 
-    def _request(self, method: str, path: str, json: Any = None) -> Any:
+    def _send(self, method: str, path: str, json: Any = None) -> httpx.Response:
         url = f"{self._s.api_base}{path}"
         headers = {"Authorization": f"Bearer {self._access_token()}"}
         try:
@@ -78,6 +78,10 @@ class PowerBIClient:
             res.raise_for_status()
         except httpx.HTTPError as e:
             raise PowerBIError(f"Error llamando a Power BI ({method} {path}): {e}") from e
+        return res
+
+    def _request(self, method: str, path: str, json: Any = None) -> Any:
+        res = self._send(method, path, json)
         if res.status_code == 204 or not res.content:
             return None
         return res.json()
@@ -115,7 +119,7 @@ class PowerBIClient:
                 names.append(str(name))
         return [TableInfo(name=n, dataset_id=dataset_id) for n in names]
 
-    # --- Ejecución (la usará el scheduler en la etapa B) ---
+    # --- Ejecución y polling (las usa el scheduler) ---
 
     def refresh_dataset(
         self,
@@ -123,14 +127,36 @@ class PowerBIClient:
         tables: list[str],
         refresh_type: str,
         group_id: str | None = None,
-    ) -> None:
-        """Dispara un enhanced refresh selectivo (lista de tablas + tipo). Si se pasa
+    ) -> str | None:
+        """Dispara un enhanced refresh selectivo (lista de tablas + tipo) y devuelve el
+        id del refresh para pollear su estado, o None si Power BI no lo informa. Con
         `group_id` (el workspace del dataset) usa la ruta con grupo, que es la que
-        corresponde para datasets que no están en "Mi área de trabajo"."""
+        corresponde para datasets que no están en "Mi área de trabajo".
+
+        ⚠️ El enhanced refresh es ASÍNCRONO: el POST devuelve 202 y el refresh sigue
+        corriendo. El id sale del header `Location` (.../refreshes/{id}) o, en su
+        defecto, de `x-ms-request-id`. Verificar estos nombres contra el servicio real."""
         body = {
             "type": _REFRESH_TYPE_MAP.get(refresh_type, "full"),
             "commitMode": "transactional",
             "objects": [{"table": t} for t in tables],
         }
         prefix = f"/groups/{group_id}" if group_id else ""
-        self._request("POST", f"{prefix}/datasets/{dataset_id}/refreshes", json=body)
+        res = self._send("POST", f"{prefix}/datasets/{dataset_id}/refreshes", json=body)
+        location = res.headers.get("Location") or res.headers.get("location")
+        if location:
+            return location.rstrip("/").rsplit("/", 1)[-1]
+        return res.headers.get("x-ms-request-id") or res.headers.get("RequestId")
+
+    def get_refresh_status(
+        self,
+        dataset_id: str,
+        refresh_id: str,
+        group_id: str | None = None,
+    ) -> str:
+        """Estado crudo de un refresh ('Unknown' = en curso para enhanced refresh,
+        'Completed', 'Failed', 'Cancelled', 'Disabled'). El mapeo a nuestro RunStatus
+        lo hace executor._map_status."""
+        prefix = f"/groups/{group_id}" if group_id else ""
+        data = self._request("GET", f"{prefix}/datasets/{dataset_id}/refreshes/{refresh_id}")
+        return (data or {}).get("status", "Unknown")
