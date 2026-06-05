@@ -41,24 +41,3 @@
   font-size: var(--fs-sm);
   color: var(--color-faint);
 }
-
-/* --- Modal --- */
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(20, 20, 23, 0.4);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: var(--space-5) var(--space-4);
-  overflow-y: auto;
-  z-index: 100;
-}
-.card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius);
-  width: 100%;
-  max-width: 460px;
-  margin-top: 6vh;
-}

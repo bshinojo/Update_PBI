@@ -1,13 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from './api'
 import { isSuccess } from './api/remote-data'
 import type { Schedule, ScheduleMutationResult } from './api/types'
-import { Breadcrumb } from './components/Breadcrumb/Breadcrumb'
-import { DatasetList } from './components/DatasetList/DatasetList'
-import { ScheduleModal } from './components/ScheduleModal/ScheduleModal'
-import type { ScheduleModalMode } from './components/ScheduleModal/ScheduleModal'
+import { SchedulePanel } from './components/ScheduleForm/SchedulePanel'
 import { TablesPanel } from './components/TablesPanel/TablesPanel'
-import { WorkspaceList } from './components/WorkspaceList/WorkspaceList'
+import { TopSelect } from './components/TopSelect/TopSelect'
 import { useDatasets } from './hooks/useDatasets'
 import { useTables } from './hooks/useTables'
 import { useWorkspaces } from './hooks/useWorkspaces'
@@ -28,15 +25,34 @@ function Shell() {
   const datasets = useDatasets(selection.selectedWorkspaceId)
   const tables = useTables(selection.selectedDatasetId)
 
-  const [modalMode, setModalMode] = useState<ScheduleModalMode | null>(null)
+  // Schedule que se está editando en el rail; null = "nueva programación".
+  const [editing, setEditing] = useState<Schedule | null>(null)
   const [resetting, setResetting] = useState(false)
 
-  const workspaceName = isSuccess(workspaces.state)
-    ? workspaces.state.data.find((w) => w.id === selection.selectedWorkspaceId)?.name
-    : undefined
-  const datasetName = isSuccess(datasets.state)
-    ? datasets.state.data.find((d) => d.id === selection.selectedDatasetId)?.name
-    : undefined
+  const workspaceOptions = isSuccess(workspaces.state) ? workspaces.state.data : []
+  const datasetOptions = isSuccess(datasets.state) ? datasets.state.data : []
+
+  // Auto-seleccionar el primer workspace y el primer modelo: arranca mostrando
+  // tablas sin clicks previos.
+  useEffect(() => {
+    if (!selection.selectedWorkspaceId && workspaceOptions.length > 0) {
+      selection.selectWorkspace(workspaceOptions[0].id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceOptions, selection.selectedWorkspaceId])
+
+  useEffect(() => {
+    if (!selection.selectedDatasetId && datasetOptions.length > 0) {
+      selection.selectDataset(datasetOptions[0].id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datasetOptions, selection.selectedDatasetId])
+
+  // Cambiar de modelo descarta la edición en curso.
+  useEffect(() => {
+    setEditing(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection.selectedDatasetId])
 
   // Tablas del dataset actual que ya tienen schedule (para avisar reasignación al crear).
   const scheduledTableNames = useMemo(() => {
@@ -47,20 +63,33 @@ function Shell() {
     return set
   }, [tables.state])
 
-  function openCreate() {
-    if (!selection.selectedDatasetId || !selection.selectedWorkspaceId) return
-    setModalMode({
-      type: 'create',
-      datasetId: selection.selectedDatasetId,
-      workspaceId: selection.selectedWorkspaceId,
-      tableNames: [...selection.checkedTables],
-    })
+  const checkedTableNames = [...selection.checkedTables]
+  const reassignTables = editing
+    ? []
+    : checkedTableNames.filter((n) => scheduledTableNames.has(n))
+
+  // Tocar la selección de tablas sale del modo edición: la acción del rail pasa a
+  // ser "programar las tildadas".
+  function handleToggle(name: string) {
+    setEditing(null)
+    selection.toggleTable(name)
+  }
+  function handleSetChecked(names: string[]) {
+    setEditing(null)
+    selection.setChecked(names)
+  }
+
+  // Editar un schedule existente: limpia las tildadas para no mezclar la
+  // selección "para crear" con lo que se está editando.
+  function handleEditBadge(schedule: Schedule) {
+    selection.clearChecks()
+    setEditing(schedule)
   }
 
   function handleSaved(result: ScheduleMutationResult) {
     tables.applyMutation(result)
     selection.clearChecks()
-    setModalMode(null)
+    setEditing(null)
   }
 
   async function handleReset() {
@@ -73,20 +102,26 @@ function Shell() {
     }
   }
 
-  const reassignTables =
-    modalMode && modalMode.type === 'create'
-      ? modalMode.tableNames.filter((n) => scheduledTableNames.has(n))
-      : undefined
-
   return (
     <div className={styles.app}>
       <header className={styles.topbar}>
-        <Breadcrumb
-          workspaceName={workspaceName}
-          datasetName={datasetName}
-          onRoot={() => selection.selectWorkspace(null)}
-          onWorkspace={() => selection.selectDataset(null)}
-        />
+        <div className={styles.selectors}>
+          <TopSelect
+            label="Workspace"
+            value={selection.selectedWorkspaceId}
+            options={workspaceOptions}
+            loading={!isSuccess(workspaces.state)}
+            onChange={selection.selectWorkspace}
+          />
+          <TopSelect
+            label="Modelo"
+            value={selection.selectedDatasetId}
+            options={datasetOptions}
+            loading={!!selection.selectedWorkspaceId && !isSuccess(datasets.state)}
+            disabled={!selection.selectedWorkspaceId}
+            onChange={selection.selectDataset}
+          />
+        </div>
         <button
           type="button"
           className="btn"
@@ -99,34 +134,24 @@ function Shell() {
       </header>
 
       <main className={styles.layout}>
-        <WorkspaceList
-          data={workspaces.state}
-          selectedId={selection.selectedWorkspaceId}
-          onSelect={selection.selectWorkspace}
-        />
-        <DatasetList
-          data={datasets.state}
-          selectedId={selection.selectedDatasetId}
-          onSelect={selection.selectDataset}
-        />
         <TablesPanel
           data={tables.state}
           checked={selection.checkedTables}
-          onToggle={selection.toggleTable}
-          onSetChecked={selection.setChecked}
-          onScheduleSelected={openCreate}
-          onEditBadge={(schedule: Schedule) => setModalMode({ type: 'edit', schedule })}
+          onToggle={handleToggle}
+          onSetChecked={handleSetChecked}
+          onEditBadge={handleEditBadge}
         />
-      </main>
-
-      {modalMode ? (
-        <ScheduleModal
-          mode={modalMode}
+        <SchedulePanel
+          key={editing ? `edit-${editing.id}` : 'new'}
+          editing={editing}
+          workspaceId={selection.selectedWorkspaceId}
+          datasetId={selection.selectedDatasetId}
+          checkedTableNames={checkedTableNames}
           reassignTables={reassignTables}
           onSaved={handleSaved}
-          onClose={() => setModalMode(null)}
+          onCancelEdit={() => setEditing(null)}
         />
-      ) : null}
+      </main>
     </div>
   )
 }

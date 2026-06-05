@@ -69,10 +69,11 @@ src/
                   labels.ts (textos español, semana Lunes-primero), assert-never.ts
   hooks/          useRemoteData (guard de respuestas obsoletas) → useWorkspaces/useDatasets/useTables
   state/          SelectionContext.tsx (reducer: workspace/dataset elegidos + tablas tildadas)
-  components/     Breadcrumb, WorkspaceList, DatasetList, TablesPanel(+TableRow),
-                  ScheduleModal(+FrequencyFields, useScheduleForm), ScheduleBadge,
-                  StatusIndicator, y primitivos en common/ (Modal, Icon, Skeleton, EmptyState)
-  App.tsx         Layout (breadcrumb + grid 3 paneles) y orquestación del modal.
+  components/     TopSelect (selectores del header), TablesPanel(+TableRow),
+                  ScheduleForm/ (SchedulePanel = rail lateral + FrequencyFields + useScheduleForm),
+                  ScheduleBadge, StatusIndicator, y primitivos en common/ (Icon, Skeleton, EmptyState)
+  App.tsx         Layout one-pager: header con 2 selectores (Workspace/Modelo) + grid
+                  [tabla | rail de programación]. Auto-selecciona el primer workspace/modelo.
 ```
 
 **Regla de oro del seam:** ningún archivo fuera de `src/api/` debe importar de `api/mock/` ni
@@ -88,9 +89,13 @@ un backend real con latencia.
 
 ## 4. Decisiones de producto ya tomadas (confirmadas con el usuario)
 
-- **"Programar seleccionadas"** crea **UN** schedule que agrupa todas las tablas tildadas
+- **"Programar"** crea **UN** schedule que agrupa todas las tablas tildadas
   (`Schedule.tables: string[]`). Si una tabla ya tenía schedule, se **reasigna** (se quita del
-  anterior; si el anterior queda vacío, se elimina) y el modal **avisa** qué tablas se mueven.
+  anterior; si el anterior queda vacío, se elimina) y el rail **avisa** qué tablas se mueven.
+- **UI one-pager** (decidido con el usuario): sin drill-down ni modal. Workspace y Modelo son
+  dos `select` en el header; la tabla ocupa el ancho; el formulario de programación vive en un
+  **rail fijo a la derecha** (crear sobre las tildadas / editar al clickear un badge). Tocar la
+  selección de tablas sale del modo edición.
 - **Persistencia** del mock en `localStorage` (botón "Resetear demo" restaura el seed).
 - **Semanal** = multiselección de días + un horario; la semana se muestra **empezando por Lunes**.
 - **Mensual** soporta "último día del mes" (`dayOfMonth: -1`), día numérico 1–28.
@@ -101,9 +106,10 @@ un backend real con latencia.
 
 ## 5. Lo que YA está hecho (✅)
 
-- Frontend completo: navegación drill-down (workspaces → modelos → tablas), badges de
-  programación, estados de último run (✓/✗/spinner/—), modal crear/editar/eliminar + toggle
-  habilitar, "Programar seleccionadas" con reasignación, skeletons de carga, empty states.
+- Frontend completo (layout **one-pager**: selectores Workspace/Modelo en el header + tabla a
+  todo el ancho + rail de programación a la derecha), badges de programación, estados de último
+  run (✓/✗/spinner/—), crear/editar/eliminar en el rail + toggle habilitar, "Programar" con
+  reasignación, skeletons de carga, empty states.
 - Capa mock con datos sembrados (3 workspaces, 2–4 modelos, 4–8 tablas, 6 schedules variados),
   delays 300–600ms, fallos opcionales con `VITE_MOCK_FAIL=1`.
 - `npm run typecheck` y `npm run build` limpios. Build estático servible por nginx

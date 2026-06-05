@@ -11,21 +11,22 @@ import {
   REFRESH_TYPE_HINT_ES,
   TIMEZONE_LABEL,
 } from '../../domain/labels'
-import { Modal } from '../common/Modal'
 import { FrequencyFields } from './FrequencyFields'
 import { useScheduleForm } from './useScheduleForm'
-import styles from './ScheduleModal.module.css'
+import styles from './ScheduleForm.module.css'
 
-export type ScheduleModalMode =
-  | { type: 'create'; datasetId: string; workspaceId: string; tableNames: string[] }
-  | { type: 'edit'; schedule: Schedule }
-
-interface ScheduleModalProps {
-  mode: ScheduleModalMode
-  /** Solo en create: tablas elegidas que ya tenían schedule y serán reasignadas. */
-  reassignTables?: string[]
+interface SchedulePanelProps {
+  /** Si hay schedule, el rail está en modo edición; si no, en modo crear. */
+  editing: Schedule | null
+  workspaceId: string | null
+  datasetId: string | null
+  /** Tablas tildadas en la lista (modo crear). */
+  checkedTableNames: string[]
+  /** Tablas tildadas que ya tenían schedule y serán reasignadas (modo crear). */
+  reassignTables: string[]
   onSaved: (result: ScheduleMutationResult) => void
-  onClose: () => void
+  /** Salir del modo edición y volver a "nueva programación". */
+  onCancelEdit: () => void
 }
 
 const KINDS: Array<{ kind: FrequencyKind; label: string }> = [
@@ -37,16 +38,23 @@ const KINDS: Array<{ kind: FrequencyKind; label: string }> = [
 
 const REFRESH_TYPES: RefreshType[] = ['full', 'dataOnly', 'calculate']
 
-export function ScheduleModal({ mode, reassignTables, onSaved, onClose }: ScheduleModalProps) {
-  const { state, patch, toggleWeeklyDay, build } = useScheduleForm(
-    mode.type === 'edit' ? mode.schedule : undefined,
-  )
+export function SchedulePanel({
+  editing,
+  workspaceId,
+  datasetId,
+  checkedTableNames,
+  reassignTables,
+  onSaved,
+  onCancelEdit,
+}: SchedulePanelProps) {
+  const { state, patch, toggleWeeklyDay, build } = useScheduleForm(editing ?? undefined)
   const [errors, setErrors] = useState<string[]>([])
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const targetTables = mode.type === 'create' ? mode.tableNames : mode.schedule.tables
-  const title = mode.type === 'create' ? 'Programar tablas' : 'Editar programación'
+  const isEdit = editing !== null
+  const targetTables = isEdit ? editing.tables : checkedTableNames
+  const canCreate = targetTables.length > 0 && !!workspaceId && !!datasetId
 
   async function handleSave() {
     const result = build()
@@ -59,16 +67,16 @@ export function ScheduleModal({ mode, reassignTables, onSaved, onClose }: Schedu
     setBusy(true)
     try {
       const mutation =
-        mode.type === 'create'
+        editing === null
           ? await api.createSchedule({
-              datasetId: mode.datasetId,
-              workspaceId: mode.workspaceId,
-              tables: mode.tableNames,
+              datasetId: datasetId!,
+              workspaceId: workspaceId!,
+              tables: checkedTableNames,
               frequency: result.frequency,
               refreshType: state.refreshType,
               enabled: state.enabled,
             })
-          : await api.updateSchedule(mode.schedule.id, {
+          : await api.updateSchedule(editing.id, {
               frequency: result.frequency,
               refreshType: state.refreshType,
               enabled: state.enabled,
@@ -82,11 +90,11 @@ export function ScheduleModal({ mode, reassignTables, onSaved, onClose }: Schedu
   }
 
   async function handleDelete() {
-    if (mode.type !== 'edit') return
+    if (editing === null) return
     setSubmitError(null)
     setBusy(true)
     try {
-      const mutation = await api.deleteSchedule(mode.schedule.id)
+      const mutation = await api.deleteSchedule(editing.id)
       onSaved(mutation)
     } catch (e) {
       setSubmitError(e instanceof ApiError ? e.message : 'No se pudo eliminar la programación.')
@@ -96,19 +104,31 @@ export function ScheduleModal({ mode, reassignTables, onSaved, onClose }: Schedu
   }
 
   return (
-    <Modal onClose={onClose} labelledBy="schedule-modal-title">
-      <div className={styles.header}>
-        <h2 id="schedule-modal-title" className={styles.heading}>
-          {title}
-        </h2>
-        <div className={styles.targets}>
-          {targetTables.length} {targetTables.length === 1 ? 'tabla' : 'tablas'}:{' '}
-          {targetTables.join(', ')}
-        </div>
+    <section className={styles.rail} aria-label="Programación">
+      <div className={styles.railHeader}>
+        <h2 className={styles.heading}>{isEdit ? 'Editar programación' : 'Nueva programación'}</h2>
+        {isEdit ? (
+          <button type="button" className={styles.newLink} onClick={onCancelEdit} disabled={busy}>
+            + Nueva
+          </button>
+        ) : null}
+      </div>
+
+      <div className={styles.targets}>
+        {targetTables.length === 0 ? (
+          'Tildá una o más tablas en la lista para programarlas.'
+        ) : (
+          <>
+            <span className={styles.targetsStrong}>
+              {targetTables.length} {targetTables.length === 1 ? 'tabla' : 'tablas'}
+            </span>
+            : {targetTables.join(', ')}
+          </>
+        )}
       </div>
 
       <div className={styles.body}>
-        {reassignTables && reassignTables.length > 0 ? (
+        {!isEdit && reassignTables.length > 0 ? (
           <div className={styles.warn}>
             {reassignTables.length === 1
               ? `La tabla ${reassignTables[0]} ya tenía una programación y se moverá a esta (se quita de la anterior).`
@@ -181,22 +201,34 @@ export function ScheduleModal({ mode, reassignTables, onSaved, onClose }: Schedu
       </div>
 
       <div className={styles.footer}>
-        {mode.type === 'edit' ? (
-          <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={busy}>
-            Eliminar
-          </button>
+        {isEdit ? (
+          <>
+            <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={busy}>
+              Eliminar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSave}
+              disabled={busy}
+            >
+              {busy ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          </>
         ) : (
-          <span />
+          <button
+            type="button"
+            className={`btn btn-primary ${styles.grow}`}
+            onClick={handleSave}
+            disabled={busy || !canCreate}
+            title={canCreate ? undefined : 'Tildá al menos una tabla'}
+          >
+            {busy
+              ? 'Programando…'
+              : `Programar${targetTables.length > 0 ? ` ${targetTables.length}` : ''}`}
+          </button>
         )}
-        <div className={styles.footerRight}>
-          <button type="button" className="btn" onClick={onClose} disabled={busy}>
-            Cancelar
-          </button>
-          <button type="button" className="btn btn-primary" onClick={handleSave} disabled={busy}>
-            {busy ? 'Guardando…' : 'Guardar'}
-          </button>
-        </div>
       </div>
-    </Modal>
+    </section>
   )
 }

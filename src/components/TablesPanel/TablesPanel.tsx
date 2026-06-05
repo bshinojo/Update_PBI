@@ -12,7 +12,6 @@ interface TablesPanelProps {
   checked: ReadonlySet<string>
   onToggle: (name: string) => void
   onSetChecked: (names: string[]) => void
-  onScheduleSelected: () => void
   onEditBadge: (schedule: Schedule) => void
 }
 
@@ -21,7 +20,6 @@ export function TablesPanel({
   checked,
   onToggle,
   onSetChecked,
-  onScheduleSelected,
   onEditBadge,
 }: TablesPanelProps) {
   const scheduleById = useMemo(() => {
@@ -41,14 +39,9 @@ export function TablesPanel({
     <section className={styles.panel}>
       <div className={styles.toolbar}>
         <div className={styles.title}>Tablas</div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={checked.size === 0}
-          onClick={onScheduleSelected}
-        >
-          Programar seleccionadas{checked.size > 0 ? ` (${checked.size})` : ''}
-        </button>
+        {checked.size > 0 ? (
+          <div className={styles.count}>{checked.size} seleccionadas</div>
+        ) : null}
       </div>
 
       <div className={styles.body}>

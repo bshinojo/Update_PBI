@@ -20,6 +20,10 @@
   letter-spacing: 0.04em;
   color: var(--color-muted);
 }
+.count {
+  font-size: var(--fs-sm);
+  color: var(--color-accent);
+}
 .body {
   flex: 1;
   min-height: 0;

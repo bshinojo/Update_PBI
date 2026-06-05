@@ -3,7 +3,7 @@ import { assertNever } from '../../domain/assert-never'
 import { LAST_DAY, MAX_DAY_OF_MONTH, MIN_DAY_OF_MONTH } from '../../domain/frequency'
 import { WEEKDAYS_ES } from '../../domain/labels'
 import type { FormState } from './useScheduleForm'
-import styles from './ScheduleModal.module.css'
+import styles from './ScheduleForm.module.css'
 
 interface FrequencyFieldsProps {
   state: FormState
