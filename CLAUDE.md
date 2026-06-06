@@ -170,13 +170,14 @@ un backend real con latencia.
   contrato, JSON camelCase idéntico a `types.ts` (sin mapeo en `http-client.ts`), persistencia
   en archivo JSON, reasignación + invariante portados de `store.ts`, credenciales de Power BI
   por `.env`. Modo `seed` por defecto (corre sin credenciales). Probado de punta a punta con
-  `TestClient` y con uvicorn real. **Falta probar la integración Power BI con credenciales reales.**
+  `TestClient` y con uvicorn real. **Lecturas verificadas contra Power BI real (2026-06-06):**
+  auth, workspaces, datasets y tablas (XMLA). **Falta sólo el refresh real** (ver §6.B).
 - **Scheduler (etapa B, ver §6.B): implementado en `backend/`.** Worker en segundo plano que
   dispara los schedules a su hora (ART), **pollea** los refreshes asíncronos en vuelo y registra
   `lastRun` (`InProgress`→`Completed/Failed`, con timeout anti-colgados). Lógica de "próxima
   corrida" pura y testeada (`nextrun.py`), executor con protocolo `start`/`poll`, suite `pytest`
-  (28 tests, todo verde sin credenciales). **Falta verificar contra Power BI real** (nombres de
-  header/estado del refresh, ver §6.B).
+  (28 tests, todo verde sin credenciales). **Falta verificar el refresh real contra Power BI**
+  (nombres de header/estado del refresh, ver §6.B); las lecturas ya se verificaron (2026-06-06).
 
 ---
 
@@ -221,9 +222,12 @@ reasignación, error 404, camelCase). En DEV: `cd backend && ./run.sh` + `VITE_A
 (Vite proxya `/api`→backend, ver `vite.config.ts`). En PROD: nginx proxya `/api/`→backend.
 **Ningún componente del front cambia.**
 
-> ⚠️ Sin credenciales todavía no se pudo probar la integración real con Power BI. Revisar sobre
-> todo `PowerBIClient.list_tables` (usa DAX `INFO.VIEW.TABLES()`; requiere XMLA/ejecución de
-> consultas habilitado en la capacidad) cuando haya un service principal de verdad.
+> ✅ **Lecturas verificadas contra Power BI real (2026-06-06)** con un service principal:
+> auth client-credentials, `GET /workspaces`, `/datasets` y `/tables` (este último vía DAX
+> `INFO.VIEW.TABLES()` — **XMLA está habilitado** en la capacidad de prueba), y `DELETE /schedules`.
+> Falta sólo disparar un **refresh real** (ver §6.B). Las credenciales van en `backend/.env`
+> (gitignored); `PBI_CLIENT_SECRET` es el **Value** del secret, no el *Secret ID* (un GUID → da
+> `AADSTS7000215`).
 
 ### B) Scheduler / ejecución real — ✅ HECHO (en `backend/`), salvo el polling real de Power BI
 
@@ -249,9 +253,10 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
   InProgress→Completed/Failed, timeout, no re-disparo en vuelo), executor (mapeo de estados +
   delegación al cliente con cliente falso), y los 8 endpoints. 28 tests, todo verde sin credenciales.
 
-> ⚠️ Falta verificar contra Power BI real (sin credenciales aún): de qué header sale el `refreshId`
+> ⚠️ Falta verificar el **refresh real** contra Power BI: de qué header sale el `refreshId`
 > (`Location`/`x-ms-request-id`) y los strings de estado del refresh. Son ajustes de nombres en
-> `powerbi/client.py`; la lógica de polling ya está testeada.
+> `powerbi/client.py`; la lógica de polling ya está testeada. (Las lecturas ya se verificaron el
+> 2026-06-06, ver §6.A.)
 
 ### C) Mejoras conocidas (opcionales)
 - **"En curso" estático del MOCK**: las corridas sembradas en InProgress del mock no se
