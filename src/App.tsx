@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { api } from './api'
 import { isSuccess } from './api/remote-data'
 import type { Schedule, ScheduleMutationResult } from './api/types'
 import { AppHeader } from './components/AppHeader/AppHeader'
@@ -36,7 +35,6 @@ function Shell() {
 
   // Schedule que se está editando en el rail; null = "nueva programación".
   const [editing, setEditing] = useState<Schedule | null>(null)
-  const [resetting, setResetting] = useState(false)
 
   // "--GENERAL--" siempre primero: es la entrada por defecto.
   const workspaceOptions = useMemo(
@@ -115,16 +113,6 @@ function Shell() {
     setEditing(null)
   }
 
-  async function handleReset() {
-    setResetting(true)
-    try {
-      await api.resetDemo?.()
-      window.location.reload()
-    } finally {
-      setResetting(false)
-    }
-  }
-
   return (
     <div className={styles.app}>
       <AppHeader />
@@ -147,15 +135,6 @@ function Shell() {
             onChange={selection.selectDataset}
           />
         </div>
-        <button
-          type="button"
-          className="btn"
-          onClick={handleReset}
-          disabled={resetting}
-          title="Restaurar los datos de demostración"
-        >
-          {resetting ? 'Reseteando…' : 'Resetear demo'}
-        </button>
       </header>
 
       {isGeneral ? (
