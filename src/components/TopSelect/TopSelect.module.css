@@ -4,20 +4,36 @@
   gap: var(--space-2);
 }
 .label {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--color-muted);
 }
+/* Selectores destacados: grandes, valor en negrita navy, borde marcado. */
 .select {
-  min-width: 180px;
-  max-width: 280px;
-  padding: 6px 8px;
-  border: 1px solid var(--color-border-strong);
+  min-width: 210px;
+  max-width: 320px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--color-border-strong);
   border-radius: var(--radius);
   background: var(--color-surface);
   color: var(--color-text);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard);
+}
+.select:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+.select:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(14, 37, 67, 0.1);
 }
 .select:disabled {
   background: var(--color-disabled-bg);
   color: var(--color-faint);
+  cursor: not-allowed;
 }

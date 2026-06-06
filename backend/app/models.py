@@ -48,11 +48,20 @@ class LastRun(CamelModel):
 class DailyFrequency(CamelModel):
     kind: Literal["daily"]
     time: str  # "HH:mm"
+    # Días JS opcionales (0=Domingo..6=Sábado). Ausente/vacío = todos los días.
+    days_of_week: Optional[list[int]] = None
 
 
 class HourlyFrequency(CamelModel):
     kind: Literal["hourly"]
-    every_hours: int
+    # Intervalo: every_hours (hora entera, compat) o every_minutes (sub-hora 15/20/30).
+    every_hours: Optional[int] = None
+    every_minutes: Optional[int] = None
+    # Franja horaria opcional (0..23). Ausente = todo el día (00..23).
+    start_hour: Optional[int] = None
+    end_hour: Optional[int] = None
+    # Días JS opcionales (0=Domingo..6=Sábado). Ausente/vacío = todos los días.
+    days_of_week: Optional[list[int]] = None
 
 
 class WeeklyFrequency(CamelModel):

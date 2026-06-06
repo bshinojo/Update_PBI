@@ -1,0 +1,233 @@
+/* ============================================================
+   RFDD — Romano, Fiocca & Díaz Delfino
+   Colors & Type
+   Derived from the brand mark + rfdd.com.ar
+   ============================================================ */
+
+/* ---------- FONTS ----------
+   Substitutions (closest free Google Fonts to the brand mark):
+   - Cormorant Garamond  → display / wordmark serif (substitute for the
+     classical transitional serif in the logo)
+   - Source Serif 4      → body serif (warm, business-grade)
+   - Inter               → UI / labels / dashboards
+   FLAG: real brand uses a custom-set serif wordmark; please send the
+   original font files if available. */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* ---------- BRAND COLORS ---------- */
+
+  /* Primary — deep navy from the wordmark */
+  --rfdd-navy-900: #0E2543;
+  --rfdd-navy-800: #163058;
+  --rfdd-navy-700: #1E3D6E;
+  --rfdd-navy-600: #2A4F86;
+
+  /* Secondary — soft sky/wave blue from the emblem */
+  --rfdd-sky-500:  #8FB8D6;
+  --rfdd-sky-400:  #A9C8DD;
+  --rfdd-sky-300:  #C5DAE7;
+  --rfdd-sky-200:  #DCE8F1;
+  --rfdd-sky-100:  #EDF3F8;
+
+  /* Accent — muted gold for highlights & dashboard chips */
+  --rfdd-gold-600: #B08B3F;
+  --rfdd-gold-500: #C9A24E;
+  --rfdd-gold-400: #DDB96E;
+
+  /* Neutrals (warm, paper-leaning) */
+  --rfdd-ink-900:  #14181F;
+  --rfdd-ink-800:  #1F242D;
+  --rfdd-ink-700:  #2D3540;
+  --rfdd-ink-600:  #4A5363;
+  --rfdd-ink-500:  #6B7585;
+  --rfdd-ink-400:  #9099A7;
+  --rfdd-ink-300:  #BDC4CE;
+  --rfdd-ink-200:  #DEE2E8;
+  --rfdd-ink-100:  #EEF1F4;
+  --rfdd-paper:    #F7F6F2;   /* warm off-white background */
+  --rfdd-white:    #FFFFFF;
+
+  /* Semantic — for dashboards (Power BI–style) */
+  --rfdd-pos:      #2E7D5B;   /* gain / positive variance */
+  --rfdd-pos-bg:   #E1EFE7;
+  --rfdd-neg:      #B23C3C;   /* loss / negative variance */
+  --rfdd-neg-bg:   #F5E2E2;
+  --rfdd-warn:     #C98A1F;
+  --rfdd-warn-bg:  #FBEFD8;
+  --rfdd-info:     var(--rfdd-navy-700);
+  --rfdd-info-bg:  var(--rfdd-sky-100);
+
+  /* Foreground / Background tokens */
+  --fg-1: var(--rfdd-navy-900);   /* primary text on light */
+  --fg-2: var(--rfdd-ink-700);    /* body text */
+  --fg-3: var(--rfdd-ink-500);    /* secondary text, captions */
+  --fg-4: var(--rfdd-ink-400);    /* placeholders / disabled */
+  --fg-on-dark: var(--rfdd-paper);
+
+  --bg-1: var(--rfdd-paper);      /* page */
+  --bg-2: var(--rfdd-white);      /* cards */
+  --bg-3: var(--rfdd-ink-100);    /* subtle wash */
+  --bg-dark: var(--rfdd-navy-900);
+
+  --border-1: var(--rfdd-ink-200);
+  --border-2: var(--rfdd-ink-300);
+  --border-strong: var(--rfdd-navy-900);
+
+  /* ---------- TYPE FAMILIES ---------- */
+  --font-display: "Cormorant Garamond", "Garamond", "Times New Roman", serif;
+  --font-serif:   "Source Serif 4", "Source Serif Pro", Georgia, serif;
+  --font-sans:    "Inter", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ---------- TYPE SCALE ---------- */
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-md:   18px;
+  --text-lg:   22px;
+  --text-xl:   28px;
+  --text-2xl:  36px;
+  --text-3xl:  48px;
+  --text-4xl:  64px;
+  --text-5xl:  84px;
+
+  /* ---------- SPACING (4-pt grid) ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* ---------- RADII ---------- */
+  --radius-none: 0;
+  --radius-xs:   2px;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   10px;
+  --radius-pill: 999px;
+
+  /* ---------- ELEVATION ---------- */
+  --shadow-1: 0 1px 2px rgba(14, 37, 67, 0.06);
+  --shadow-2: 0 2px 8px rgba(14, 37, 67, 0.08);
+  --shadow-3: 0 8px 24px rgba(14, 37, 67, 0.10);
+  --shadow-4: 0 18px 48px rgba(14, 37, 67, 0.14);
+  --inset-1:  inset 0 1px 0 rgba(255,255,255,0.5);
+
+  /* ---------- MOTION ---------- */
+  --ease-standard: cubic-bezier(.2, .6, .2, 1);
+  --ease-emphatic: cubic-bezier(.2, .8, .2, 1);
+  --dur-fast:   140ms;
+  --dur-normal: 240ms;
+  --dur-slow:   420ms;
+}
+
+/* ===========================================================
+   SEMANTIC TYPE — apply directly or compose into components
+   =========================================================== */
+
+.rfdd-eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--rfdd-ink-500);
+}
+
+.rfdd-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-5xl);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--fg-1);
+}
+
+.rfdd-h1 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-3xl);
+  line-height: 1.1;
+  color: var(--fg-1);
+}
+
+.rfdd-h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-2xl);
+  line-height: 1.15;
+  color: var(--fg-1);
+}
+
+.rfdd-h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: var(--text-xl);
+  line-height: 1.25;
+  color: var(--fg-1);
+}
+
+.rfdd-h4 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--text-md);
+  line-height: 1.35;
+  color: var(--fg-1);
+}
+
+.rfdd-lead {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--text-md);
+  line-height: 1.6;
+  color: var(--fg-2);
+}
+
+.rfdd-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--fg-2);
+}
+
+.rfdd-small {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--fg-3);
+}
+
+.rfdd-caption {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--fg-3);
+  letter-spacing: 0.02em;
+}
+
+.rfdd-tagline {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--rfdd-navy-900);
+}
+
+.rfdd-divider {
+  display: inline-block;
+  width: 32px;
+  height: 1px;
+  background: var(--rfdd-navy-900);
+  vertical-align: middle;
+  margin-right: 12px;
+}

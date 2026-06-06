@@ -1,0 +1,229 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "ui_kits/dashboard/**",
+              "ui_kits/website/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Cormorant Garamond|Source Serif 4|Inter))/i]",
+        "message": "Font not provided by the design system. Available: Cormorant Garamond, Source Serif 4, Inter."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {},
+    "tokens": [
+      "--bg-1",
+      "--bg-2",
+      "--bg-3",
+      "--bg-dark",
+      "--border-1",
+      "--border-2",
+      "--border-strong",
+      "--dur-fast",
+      "--dur-normal",
+      "--dur-slow",
+      "--ease-emphatic",
+      "--ease-standard",
+      "--fg-1",
+      "--fg-2",
+      "--fg-3",
+      "--fg-4",
+      "--fg-on-dark",
+      "--font-display",
+      "--font-mono",
+      "--font-sans",
+      "--font-serif",
+      "--inset-1",
+      "--radius-lg",
+      "--radius-md",
+      "--radius-none",
+      "--radius-pill",
+      "--radius-sm",
+      "--radius-xs",
+      "--rfdd-gold-400",
+      "--rfdd-gold-500",
+      "--rfdd-gold-600",
+      "--rfdd-info",
+      "--rfdd-info-bg",
+      "--rfdd-ink-100",
+      "--rfdd-ink-200",
+      "--rfdd-ink-300",
+      "--rfdd-ink-400",
+      "--rfdd-ink-500",
+      "--rfdd-ink-600",
+      "--rfdd-ink-700",
+      "--rfdd-ink-800",
+      "--rfdd-ink-900",
+      "--rfdd-navy-600",
+      "--rfdd-navy-700",
+      "--rfdd-navy-800",
+      "--rfdd-navy-900",
+      "--rfdd-neg",
+      "--rfdd-neg-bg",
+      "--rfdd-paper",
+      "--rfdd-pos",
+      "--rfdd-pos-bg",
+      "--rfdd-sky-100",
+      "--rfdd-sky-200",
+      "--rfdd-sky-300",
+      "--rfdd-sky-400",
+      "--rfdd-sky-500",
+      "--rfdd-warn",
+      "--rfdd-warn-bg",
+      "--rfdd-white",
+      "--shadow-1",
+      "--shadow-2",
+      "--shadow-3",
+      "--shadow-4",
+      "--space-1",
+      "--space-2",
+      "--space-3",
+      "--space-4",
+      "--space-5",
+      "--space-6",
+      "--space-7",
+      "--space-8",
+      "--space-9",
+      "--text-2xl",
+      "--text-3xl",
+      "--text-4xl",
+      "--text-5xl",
+      "--text-base",
+      "--text-lg",
+      "--text-md",
+      "--text-sm",
+      "--text-xl",
+      "--text-xs"
+    ],
+    "tokenKinds": {
+      "--rfdd-navy-900": "color",
+      "--rfdd-navy-800": "color",
+      "--rfdd-navy-700": "color",
+      "--rfdd-navy-600": "color",
+      "--rfdd-sky-500": "color",
+      "--rfdd-sky-400": "color",
+      "--rfdd-sky-300": "color",
+      "--rfdd-sky-200": "color",
+      "--rfdd-sky-100": "color",
+      "--rfdd-gold-600": "color",
+      "--rfdd-gold-500": "color",
+      "--rfdd-gold-400": "color",
+      "--rfdd-ink-900": "color",
+      "--rfdd-ink-800": "color",
+      "--rfdd-ink-700": "color",
+      "--rfdd-ink-600": "color",
+      "--rfdd-ink-500": "color",
+      "--rfdd-ink-400": "color",
+      "--rfdd-ink-300": "color",
+      "--rfdd-ink-200": "color",
+      "--rfdd-ink-100": "color",
+      "--rfdd-paper": "color",
+      "--rfdd-white": "color",
+      "--rfdd-pos": "color",
+      "--rfdd-pos-bg": "color",
+      "--rfdd-neg": "color",
+      "--rfdd-neg-bg": "color",
+      "--rfdd-warn": "color",
+      "--rfdd-warn-bg": "color",
+      "--rfdd-info": "color",
+      "--rfdd-info-bg": "color",
+      "--fg-1": "color",
+      "--fg-2": "color",
+      "--fg-3": "color",
+      "--fg-4": "color",
+      "--fg-on-dark": "color",
+      "--bg-1": "color",
+      "--bg-2": "color",
+      "--bg-3": "color",
+      "--bg-dark": "color",
+      "--border-1": "color",
+      "--border-2": "color",
+      "--border-strong": "color",
+      "--font-display": "font",
+      "--font-serif": "font",
+      "--font-sans": "font",
+      "--font-mono": "font",
+      "--text-xs": "font",
+      "--text-sm": "font",
+      "--text-base": "font",
+      "--text-md": "font",
+      "--text-lg": "font",
+      "--text-xl": "font",
+      "--text-2xl": "font",
+      "--text-3xl": "font",
+      "--text-4xl": "font",
+      "--text-5xl": "font",
+      "--space-1": "spacing",
+      "--space-2": "spacing",
+      "--space-3": "spacing",
+      "--space-4": "spacing",
+      "--space-5": "spacing",
+      "--space-6": "spacing",
+      "--space-7": "spacing",
+      "--space-8": "spacing",
+      "--space-9": "spacing",
+      "--radius-none": "radius",
+      "--radius-xs": "radius",
+      "--radius-sm": "radius",
+      "--radius-md": "radius",
+      "--radius-lg": "radius",
+      "--radius-pill": "radius",
+      "--shadow-1": "shadow",
+      "--shadow-2": "shadow",
+      "--shadow-3": "shadow",
+      "--shadow-4": "shadow",
+      "--inset-1": "spacing",
+      "--ease-standard": "other",
+      "--ease-emphatic": "other",
+      "--dur-fast": "other",
+      "--dur-normal": "other",
+      "--dur-slow": "other"
+    },
+    "fontFamilies": [
+      "Cormorant Garamond",
+      "Inter",
+      "Source Serif 4"
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+.strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+}
+
+.label {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Números en Inter 700 tabular (el serif display se reserva para titulares). */
+.value {
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: var(--fs-2xl);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.note {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--color-muted);
+}
+.pos {
+  color: var(--color-ok);
+}
+.warn {
+  color: var(--color-warn);
+}
+.muted {
+  color: var(--color-faint);
+}
+.gold {
+  color: var(--color-gold-strong);
+}
+
+@media (max-width: 900px) {
+  .strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

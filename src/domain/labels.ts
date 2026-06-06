@@ -23,6 +23,9 @@ export const WEEKDAYS_ES: WeekdayOption[] = [
   { value: 0, long: 'Domingo', short: 'Dom' },
 ]
 
+/** Todos los días JS, en orden Lunes-primero (default = "todos los días"). */
+export const ALL_WEEKDAY_VALUES: number[] = WEEKDAYS_ES.map((d) => d.value)
+
 export const REFRESH_TYPE_ES: Record<RefreshType, string> = {
   full: 'Completo',
   dataOnly: 'Solo datos',

@@ -43,14 +43,22 @@ Alcance completo imaginado (no todo está construido todavía):
 
 - **React + Vite + TypeScript**. Deps de runtime: solo `react` + `react-dom`. **Sin** router,
   Redux, Zustand, React Query, UI kit ni librería de íconos/fechas.
-- **CSS Modules + design tokens** en `src/index.css`. Estética **flat por ausencia**: no
-  existen tokens de sombra ni gradiente; bordes 1px; selección = tinte sutil + borde acento;
-  única animación = spinner. (Ver el bloque de reglas al inicio de `src/index.css`.)
+- **CSS Modules + design tokens** en `src/index.css`. **Lenguaje de marca RFDD** (Romano,
+  Fiocca & Díaz Delfino): ancla **navy `#0E2543`**, secundario **sky**, acento **gold** con
+  moderación, fondo **paper `#F7F6F2`**; tipos **Cormorant Garamond** (títulos) + **Inter**
+  (UI/números tabulares); labels en **versalitas tracked**; **sombras navy sutiles** y bordes
+  hairline 1px. **Reemplaza la estética "flat por ausencia" original** (que prohibía sombras y
+  serif). Fuente de verdad de tokens: `rfdd-design-system/project/colors_and_type.css`; el
+  `:root` de `src/index.css` **remapea** los tokens de la app a valores RFDD (por eso
+  re-tematizar fue casi solo tocar `index.css`, sin reescribir componentes).
 - **UI 100% en español.**
 - **Cross-platform (Windows dev → Linux/nginx):** `base: './'` en `vite.config.ts`,
   `forceConsistentCasingInFileNames` en `tsconfig.json`, `.gitattributes` con LF. Nada de
-  paths absolutos de SO; imports siempre con `/`.
-- **Sin auth y sin HTTP real todavía.**
+  paths absolutos de SO; imports siempre con `/` (los assets, p. ej. el logo, se importan en
+  TS para que Vite genere URLs relativas al `base`).
+- **Sin auth real todavía:** la barra superior (`AppHeader`) muestra cuenta + botón "Salir"
+  **mock, solo visual**. El **modo http real ya está cableado** (ver §6.A); el mock sigue
+  disponible con `VITE_API_MODE=mock`.
 
 ---
 
@@ -69,11 +77,15 @@ src/
                   labels.ts (textos español, semana Lunes-primero), assert-never.ts
   hooks/          useRemoteData (guard de respuestas obsoletas) → useWorkspaces/useDatasets/useTables
   state/          SelectionContext.tsx (reducer: workspace/dataset elegidos + tablas tildadas)
-  components/     TopSelect (selectores del header), TablesPanel(+TableRow),
+  components/     AppHeader (barra superior NAVY de marca RFDD: logo invertido + watermark de
+                  olas + título serif "Programador de Actualizaciones" + cuenta mock + "Salir"),
+                  TopSelect (selectores del header), TablesPanel(+TableRow),
+                  KpiStrip (tira de KPI tiles del modelo: tablas/programadas/en pausa/sin programar),
                   ScheduleForm/ (SchedulePanel = rail lateral + FrequencyFields + useScheduleForm),
                   ScheduleBadge, StatusIndicator, y primitivos en common/ (Icon, Skeleton, EmptyState)
-  App.tsx         Layout one-pager: header con 2 selectores (Workspace/Modelo) + grid
-                  [tabla | rail de programación]. Auto-selecciona el primer workspace/modelo.
+  App.tsx         Layout one-pager: AppHeader (marca + cuenta) + barra de selectores
+                  (Workspace/Modelo) + grid [tabla | rail de programación a MEDIA pantalla,
+                  `1fr 1fr`]. Auto-selecciona el primer workspace/modelo.
 ```
 
 **Regla de oro del seam:** ningún archivo fuera de `src/api/` debe importar de `api/mock/` ni
@@ -93,23 +105,63 @@ un backend real con latencia.
   (`Schedule.tables: string[]`). Si una tabla ya tenía schedule, se **reasigna** (se quita del
   anterior; si el anterior queda vacío, se elimina) y el rail **avisa** qué tablas se mueven.
 - **UI one-pager** (decidido con el usuario): sin drill-down ni modal. Workspace y Modelo son
-  dos `select` en el header; la tabla ocupa el ancho; el formulario de programación vive en un
-  **rail fijo a la derecha** (crear sobre las tildadas / editar al clickear un badge). Tocar la
-  selección de tablas sale del modo edición.
+  dos `select` en una barra de selectores; la tabla ocupa el ancho; el formulario de programación
+  vive en un **rail fijo a la derecha que ocupa la mitad de la pantalla** (grid `1fr 1fr`; crear
+  sobre las tildadas / editar al clickear un badge). Tocar la selección de tablas sale del modo edición.
+- **Diseño RFDD** (pedido por el usuario): se adoptó el design system de la firma
+  (`rfdd-design-system/`) en reemplazo de la estética flat. Detalles de tokens/tipos en §2.
+- **Barra superior de marca (mock)**: `AppHeader` navy con logo RFDD, título serif
+  **"Programador de Actualizaciones"** (sin subtítulo) y una **cuenta de ejemplo** (avatar con
+  iniciales) + botón **"Salir"**. **Solo visual**: no hay auth/sesión.
+- **Formulario de programación rediseñado** (pedido del usuario, "más vistoso y moderno"):
+  segmented de frecuencia full-width (pill navy), tipo de refresh como **option-cards compactas
+  de una línea** (la primera, Completo, marcada `(recomendado)` en gold), "Habilitado" como
+  **toggle switch**, **tarjeta de Resumen en vivo** (acento gold), y el texto de tablas objetivo
+  **integrado en el cuerpo** (tarjeta sutil / hint), ya no en una barra aislada. El CTA
+  **"Programar"** vive en el **header del rail** (a la derecha del título, grande + sombra,
+  deshabilitado si no hay tablas); en modo edición el footer tiene Eliminar / Guardar.
+- **Panel izquierdo sin título**: se quitó el encabezado "Modelo / Tablas del modelo"; el
+  `KpiStrip` encabeza directamente. Los **selectores Workspace/Modelo** (`TopSelect`) van
+  destacados (grandes, valor en negrita navy, borde 1.5px) para que no pasen desapercibidos
+  bajo la barra navy.
+- **Resaltado de filas en edición**: al editar/seleccionar, las filas de esas tablas en la
+  tabla izquierda se resaltan (tinte sky; las **en edición** con acento gold a la izquierda).
+  `TablesPanel` recibe `editingTables` desde `App`; ver `TableRow` (`rowChecked`/`rowEditing`).
+- **Frecuencias (modelo y reglas, confirmadas con el usuario):**
+  - **Diario** = horario + **días de la semana** (multi, default todos). `DailyFrequency.daysOfWeek?`.
+  - **Cada N** = intervalo elegido en un **combobox** que incluye **sub-hora (15/20/30 min)** y horas
+    (1–24), + **franja `startHour`/`endHour`** + **días** (multi). Intervalo: hora entera →
+    `everyHours`; sub-hora → `everyMinutes` (prioriza minutos; resolver `hourlyIntervalMinutes`).
+  - **Semanal** = **un solo día** (elección única) + horario. (Si querés varios días, es "Diario
+    con días".) `WeeklyFrequency.daysOfWeek` se guarda con 1 elemento.
+  - **Mensual** = "último día del mes" (`dayOfMonth: -1`) o día 1–28.
+  - Campos opcionales (días/franja/minutos) se **omiten cuando son el default** → JSON limpio y
+    compatible con schedules viejos. Scheduler (`backend/app/nextrun.py`): diario respeta días;
+    horario itera **cada `interval` minutos** dentro de `[start:00, end:00]` y respeta los días.
+    Validación en `useScheduleForm.buildFrequency`.
+- **Checkbox "Habilitado"** = schedule **activo** (el scheduler lo dispara a su hora);
+  destildado = **pausado** (se guarda y conserva tablas/config, pero no corre). Backend:
+  `scheduler.py` solo recorre `all_enabled_schedules()`.
 - **Persistencia** del mock en `localStorage` (botón "Resetear demo" restaura el seed).
-- **Semanal** = multiselección de días + un horario; la semana se muestra **empezando por Lunes**.
-- **Mensual** soporta "último día del mes" (`dayOfMonth: -1`), día numérico 1–28.
-- **Zona horaria** fija, display-only: `ART (UTC-3)` (no se guarda por schedule).
+- **Zona horaria** fija, display-only: `ART (UTC-3)` (no se guarda por schedule). La semana se
+  muestra **empezando por Lunes**.
 - **Tipo de refresh** default = `full` (Completo). Ver tabla en sección 7.
 
 ---
 
 ## 5. Lo que YA está hecho (✅)
 
-- Frontend completo (layout **one-pager**: selectores Workspace/Modelo en el header + tabla a
-  todo el ancho + rail de programación a la derecha), badges de programación, estados de último
-  run (✓/✗/spinner/—), crear/editar/eliminar en el rail + toggle habilitar, "Programar" con
-  reasignación, skeletons de carga, empty states.
+- Frontend completo (layout **one-pager**: barra de marca RFDD + selectores Workspace/Modelo +
+  tabla a todo el ancho + rail de programación a **media pantalla**), badges de programación,
+  estados de último run (✓/✗/spinner/—), crear/editar/eliminar en el rail + toggle habilitar,
+  "Programar" con reasignación, skeletons de carga, empty states.
+- **Diseño RFDD aplicado a fondo** (pedido explícito de que "se note más"): tema en
+  `src/index.css` (tokens navy/sky/gold/paper + fuentes Cormorant+Inter), **barra superior navy**
+  (`AppHeader`) con logo invertido (`filter: brightness(0) invert(1)`), **watermark de olas**
+  (`pattern-waves.svg`) y eyebrow gold; patrón **eyebrow (gold tracked) + título serif** en los
+  headers de ambos paneles; **tira de KPI tiles** (`KpiStrip`) con el resumen del modelo; contador
+  de selección como chip sky. Assets en `src/components/AppHeader/` (logo + olas), emblema como
+  `public/favicon.svg`. Verificado por captura headless (typecheck + build limpios).
 - Capa mock con datos sembrados (3 workspaces, 2–4 modelos, 4–8 tablas, 6 schedules variados),
   delays 300–600ms, fallos opcionales con `VITE_MOCK_FAIL=1`.
 - `npm run typecheck` y `npm run build` limpios. Build estático servible por nginx
@@ -177,8 +229,9 @@ reasignación, error 404, camelCase). En DEV: `cd backend && ./run.sh` + `VITE_A
 
 Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para con el
 `lifespan`, comparte el store en memoria → uvicorn con 1 worker):
-- **`backend/app/nextrun.py`**: lógica PURA de "próxima corrida" en ART (diario, semanal por
-  días JS, mensual con "último día", horario cada N horas ancladas a medianoche).
+- **`backend/app/nextrun.py`**: lógica PURA de "próxima corrida" en ART (diario con días JS,
+  semanal por día, mensual con "último día", y horario cada `interval` minutos —sub-hora o
+  horas— dentro de la franja `[start:00, end:00]` y respetando los días).
 - **`backend/app/scheduler.py`**: `tick(now)` (puro respecto del reloj, fácil de testear) (1)
   dispara los schedules vencidos y (2) **pollea los refreshes en vuelo** resolviendo
   `InProgress`→`Completed/Failed`. Lleva un dict de pendientes (`scheduleId→{token,started_at,
@@ -234,7 +287,8 @@ Variables (ver `.env.example`): `VITE_API_MODE=mock|http`, `VITE_MOCK_FAIL=1` (f
 ## 9. Convenciones al trabajar acá
 
 - Respetar el **seam**: no importar de `api/mock`/`api/http` fuera de `src/api/`.
-- Mantener la **estética flat** (sin sombras/gradientes) y la **UI en español**.
+- Mantener el **lenguaje de marca RFDD** (navy/sky/gold/paper, Cormorant+Inter, labels en
+  versalitas, sombras navy sutiles; ver §2 y `rfdd-design-system/`) y la **UI en español**.
 - Cada nivel de navegación maneja **loading + empty + error** (vía `RemoteData`).
 - Switches sobre uniones discriminadas se cierran con `assertNever` (exhaustividad).
 - Componentes chicos y separados, un `.module.css` co-locado por componente.

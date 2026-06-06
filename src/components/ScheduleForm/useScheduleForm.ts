@@ -1,37 +1,61 @@
 import { useReducer } from 'react'
-import type { Frequency, FrequencyKind, RefreshType, Schedule } from '../../api/types'
+import type {
+  DailyFrequency,
+  Frequency,
+  FrequencyKind,
+  HourlyFrequency,
+  RefreshType,
+  Schedule,
+} from '../../api/types'
 import { assertNever } from '../../domain/assert-never'
 import {
+  HOURLY_INTERVALS,
   LAST_DAY,
   MAX_DAY_OF_MONTH,
   MIN_DAY_OF_MONTH,
+  hourlyIntervalMinutes,
 } from '../../domain/frequency'
+import { ALL_WEEKDAY_VALUES } from '../../domain/labels'
 
 // El estado del formulario espeja la unión Frequency pero guarda los campos de
 // TODAS las frecuencias a la vez, así cambiar Diario -> Semanal -> Diario no pierde
 // lo que el usuario ya había cargado.
 export interface FormState {
   kind: FrequencyKind
+  // Diario: horario + días (multi, default todos).
   dailyTime: string
-  everyHours: number
-  weeklyDays: number[]
+  dailyDays: number[]
+  // Cada N: intervalo en MINUTOS (15/20/30/60/...), franja y días (multi).
+  hourlyEvery: number
+  hourlyStart: number // 0..23
+  hourlyEnd: number // 0..23
+  hourlyDays: number[]
+  // Semanal: UN solo día (elección única) + horario.
+  weeklyDay: number
   weeklyTime: string
+  // Mensual: día del mes + horario.
   monthlyDay: number // 1..28 o LAST_DAY
   monthlyTime: string
   refreshType: RefreshType
   enabled: boolean
 }
 
+type DayField = 'dailyDays' | 'hourlyDays'
+
 type FormAction =
   | { type: 'patch'; patch: Partial<FormState> }
-  | { type: 'toggleWeeklyDay'; value: number }
+  | { type: 'toggleDay'; field: DayField; value: number }
 
 function initFormState(schedule?: Schedule): FormState {
   const base: FormState = {
     kind: 'daily',
     dailyTime: '06:00',
-    everyHours: 4,
-    weeklyDays: [1],
+    dailyDays: [...ALL_WEEKDAY_VALUES],
+    hourlyEvery: 240,
+    hourlyStart: 0,
+    hourlyEnd: 23,
+    hourlyDays: [...ALL_WEEKDAY_VALUES],
+    weeklyDay: 1,
     weeklyTime: '06:00',
     monthlyDay: 1,
     monthlyTime: '06:00',
@@ -50,12 +74,18 @@ function initFormState(schedule?: Schedule): FormState {
   switch (f.kind) {
     case 'daily':
       state.dailyTime = f.time
+      state.dailyDays =
+        f.daysOfWeek && f.daysOfWeek.length ? [...f.daysOfWeek] : [...ALL_WEEKDAY_VALUES]
       break
     case 'hourly':
-      state.everyHours = f.everyHours
+      state.hourlyEvery = hourlyIntervalMinutes(f)
+      state.hourlyStart = f.startHour ?? 0
+      state.hourlyEnd = f.endHour ?? 23
+      state.hourlyDays =
+        f.daysOfWeek && f.daysOfWeek.length ? [...f.daysOfWeek] : [...ALL_WEEKDAY_VALUES]
       break
     case 'weekly':
-      state.weeklyDays = [...f.daysOfWeek]
+      state.weeklyDay = f.daysOfWeek[0] ?? 1
       state.weeklyTime = f.time
       break
     case 'monthly':
@@ -72,11 +102,11 @@ function reducer(state: FormState, action: FormAction): FormState {
   switch (action.type) {
     case 'patch':
       return { ...state, ...action.patch }
-    case 'toggleWeeklyDay': {
-      const set = new Set(state.weeklyDays)
+    case 'toggleDay': {
+      const set = new Set(state[action.field])
       if (set.has(action.value)) set.delete(action.value)
       else set.add(action.value)
-      return { ...state, weeklyDays: [...set] }
+      return { ...state, [action.field]: [...set] }
     }
     default:
       return state
@@ -91,28 +121,51 @@ export type BuildResult =
 // en español. Es el ÚNICO lugar donde vive la validación de frecuencia.
 export function buildFrequency(state: FormState): BuildResult {
   switch (state.kind) {
-    case 'daily':
-      if (!state.dailyTime) return { ok: false, errors: ['Elegí un horario.'] }
-      return { ok: true, frequency: { kind: 'daily', time: state.dailyTime } }
-
-    case 'hourly':
-      if (!Number.isFinite(state.everyHours) || state.everyHours < 1 || state.everyHours > 24) {
-        return { ok: false, errors: ['La cantidad de horas debe estar entre 1 y 24.'] }
+    case 'daily': {
+      const errors: string[] = []
+      if (!state.dailyTime) errors.push('Elegí un horario.')
+      if (state.dailyDays.length === 0) errors.push('Elegí al menos un día de la semana.')
+      if (errors.length) return { ok: false, errors }
+      const frequency: DailyFrequency = { kind: 'daily', time: state.dailyTime }
+      if (state.dailyDays.length < ALL_WEEKDAY_VALUES.length) {
+        frequency.daysOfWeek = [...state.dailyDays].sort((a, b) => a - b)
       }
-      return { ok: true, frequency: { kind: 'hourly', everyHours: Math.round(state.everyHours) } }
+      return { ok: true, frequency }
+    }
+
+    case 'hourly': {
+      const errors: string[] = []
+      if (!HOURLY_INTERVALS.some((o) => o.minutes === state.hourlyEvery)) {
+        errors.push('Elegí un intervalo válido.')
+      }
+      if (state.hourlyStart > state.hourlyEnd) {
+        errors.push('La hora "desde" no puede ser posterior a la "hasta".')
+      }
+      if (state.hourlyDays.length === 0) {
+        errors.push('Elegí al menos un día de la semana.')
+      }
+      if (errors.length) return { ok: false, errors }
+
+      const frequency: HourlyFrequency = { kind: 'hourly' }
+      // Hora entera -> everyHours (shape clásico); sub-hora -> everyMinutes.
+      if (state.hourlyEvery % 60 === 0) frequency.everyHours = state.hourlyEvery / 60
+      else frequency.everyMinutes = state.hourlyEvery
+      // window/días solo cuando NO son el default (todo el día / todos los días).
+      if (!(state.hourlyStart === 0 && state.hourlyEnd === 23)) {
+        frequency.startHour = state.hourlyStart
+        frequency.endHour = state.hourlyEnd
+      }
+      if (state.hourlyDays.length < ALL_WEEKDAY_VALUES.length) {
+        frequency.daysOfWeek = [...state.hourlyDays].sort((a, b) => a - b)
+      }
+      return { ok: true, frequency }
+    }
 
     case 'weekly': {
-      const errors: string[] = []
-      if (state.weeklyDays.length === 0) errors.push('Elegí al menos un día de la semana.')
-      if (!state.weeklyTime) errors.push('Elegí un horario.')
-      if (errors.length) return { ok: false, errors }
+      if (!state.weeklyTime) return { ok: false, errors: ['Elegí un horario.'] }
       return {
         ok: true,
-        frequency: {
-          kind: 'weekly',
-          daysOfWeek: [...state.weeklyDays].sort((a, b) => a - b),
-          time: state.weeklyTime,
-        },
+        frequency: { kind: 'weekly', daysOfWeek: [state.weeklyDay], time: state.weeklyTime },
       }
     }
 
@@ -140,7 +193,8 @@ export function useScheduleForm(initial?: Schedule) {
   return {
     state,
     patch: (patch: Partial<FormState>) => dispatch({ type: 'patch', patch }),
-    toggleWeeklyDay: (value: number) => dispatch({ type: 'toggleWeeklyDay', value }),
+    toggleDailyDay: (value: number) => dispatch({ type: 'toggleDay', field: 'dailyDays', value }),
+    toggleHourlyDay: (value: number) => dispatch({ type: 'toggleDay', field: 'hourlyDays', value }),
     build: () => buildFrequency(state),
   }
 }

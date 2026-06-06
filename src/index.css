@@ -1,42 +1,75 @@
+/* Fuentes de marca RFDD (sustitutos libres de Google Fonts). */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600;700&display=swap');
+
 /*
-  REGLAS DE LA ESTÉTICA FLAT (cumplir siempre):
-  - Separación con bordes de 1px y espacio en blanco; NUNCA box-shadow decorativa.
-  - Sin gradientes; fondos planos.
-  - Selección = tinte de fondo sutil + borde acento a la izquierda, no elevación.
-  - Foco visible con outline, no con glow.
-  - Bordes redondeados como mucho var(--radius).
-  - La única animación de la app es el spinner.
+  TEMA RFDD — Romano, Fiocca & Díaz Delfino (Desarrollo de Negocios).
+  Reemplaza la estética "flat por ausencia" anterior por el lenguaje de marca:
+  - Ancla NAVY #0E2543 (texto, acciones primarias, header). Secundario SKY.
+    Acento GOLD con MUCHA moderación (flourishes/números clave, nunca CTAs).
+  - Fondo PAPER #F7F6F2 (blanco cálido, "membrete"), tarjetas en blanco.
+  - Tipos: Cormorant Garamond (display/títulos), Source Serif 4 (lead),
+    Inter (UI, labels, números tabulares). Labels en VERSALITAS tracked.
+  - Sombras navy SUTILES (no negro puro). Bordes hairline 1px. Radios chicos.
+  Single source of truth de tokens: rfdd-design-system/project/colors_and_type.css
 */
 
 :root {
-  /* Colores */
-  --color-bg: #f7f7f8;
-  --color-surface: #ffffff;
-  --color-border: #e4e4e7;
-  --color-border-strong: #cfcfd4;
-  --color-text: #18181b;
-  --color-muted: #6b7280;
-  --color-faint: #9ca3af;
-  --color-accent: #2563eb;
-  --color-accent-weak: #eef3ff;
-  --color-selected-bg: #f4f7ff;
-  --color-ok: #16a34a;
-  --color-fail: #dc2626;
-  --color-progress: #6b7280;
-  --color-danger: #dc2626;
-  --color-danger-weak: #fef2f2;
-  --color-disabled-bg: #f4f4f5;
+  /* ---------- Paleta de marca (subset usado) ---------- */
+  --rfdd-navy-900: #0e2543;
+  --rfdd-navy-800: #163058;
+  --rfdd-navy-700: #1e3d6e;
+  --rfdd-sky-500: #8fb8d6;
+  --rfdd-sky-300: #c5dae7;
+  --rfdd-sky-200: #dce8f1;
+  --rfdd-sky-100: #edf3f8;
+  --rfdd-gold-600: #b08b3f;
+  --rfdd-gold-500: #c9a24e;
 
-  /* Tipografía */
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* ---------- Tokens de la app (nombres preservados, valores RFDD) ---------- */
+  --color-bg: #f7f6f2;            /* paper */
+  --color-surface: #ffffff;       /* tarjetas / superficies */
+  --color-border: #dee2e8;        /* ink-200, hairline */
+  --color-border-strong: #bdc4ce; /* ink-300 */
+  --color-text: #0e2543;          /* navy / fg-1 */
+  --color-muted: #6b7585;         /* ink-500 / fg-3 */
+  --color-faint: #9099a7;         /* ink-400 / fg-4 */
+
+  --color-accent: #0e2543;        /* NAVY = color de acción primaria */
+  --color-accent-hover: #163058;  /* navy-800 */
+  --color-accent-weak: #edf3f8;   /* sky-100 (chips / selección) */
+  --color-selected-bg: #edf3f8;   /* sky-100 (fila seleccionada) */
+  --color-on-accent: #f7f6f2;     /* texto sobre navy = paper */
+
+  --color-gold: #c9a24e;
+  --color-gold-strong: #b08b3f;
+
+  /* Semánticos editoriales (desaturados, nunca candy) */
+  --color-ok: #2e7d5b;
+  --color-fail: #b23c3c;
+  --color-progress: #6b7585;
+  --color-danger: #b23c3c;
+  --color-danger-weak: #f5e2e2;
+  --color-warn: #c98a1f;
+  --color-warn-weak: #fbefd8;
+  --color-warn-border: #e8c98a;
+  --color-disabled-bg: #eef1f4;   /* ink-100 */
+
+  /* ---------- Tipografía ---------- */
+  --font-display: 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
+  --font: 'Inter', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: var(--font);
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
   --fs-xs: 11px;
   --fs-sm: 12px;
   --fs-base: 13px;
   --fs-md: 14px;
   --fs-lg: 16px;
-  --fs-xl: 20px;
+  --fs-xl: 22px;   /* títulos serif */
+  --fs-2xl: 28px;  /* títulos display grandes (header, rail) */
 
-  /* Espaciado */
+  /* ---------- Espaciado (grilla 4pt, igual que RFDD) ---------- */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -44,7 +77,17 @@
   --space-5: 24px;
   --space-6: 32px;
 
-  --radius: 4px;
+  --radius: 4px;     /* botones / inputs */
+  --radius-md: 6px;  /* tarjetas */
+
+  /* ---------- Elevación (navy-tinted, sutil) ---------- */
+  --shadow-1: 0 1px 2px rgba(14, 37, 67, 0.06);
+  --shadow-2: 0 2px 8px rgba(14, 37, 67, 0.08);
+  --shadow-3: 0 8px 24px rgba(14, 37, 67, 0.1);
+
+  /* ---------- Motion ---------- */
+  --ease-standard: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --dur-fast: 140ms;
 }
 
 * {
@@ -90,38 +133,62 @@ select {
   outline-offset: 1px;
 }
 
-/* Botón base reutilizable (flat). */
+/* Foco editorial en campos: borde navy + halo suave (estilo forms RFDD). */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(14, 37, 67, 0.1);
+}
+
+/* Botón base = secundario neutro (blanco, hairline, texto navy). */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 6px 12px;
+  padding: 8px 16px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius);
   background: var(--color-surface);
   color: var(--color-text);
+  font-family: var(--font);
   font-size: var(--fs-base);
+  font-weight: 500;
+  letter-spacing: 0.02em;
   line-height: 1;
+  transition: background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard);
 }
 
 .btn:hover:not(:disabled) {
-  background: #fafafa;
+  background: var(--color-bg);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn:disabled {
   opacity: 0.5;
 }
 
+/* Primario = navy sólido, texto paper. Hover: navy-800 + leve sombra. */
 .btn-primary {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-on-accent);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #1d4fd8;
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+  box-shadow: var(--shadow-2);
 }
 
+/* Peligro = contorno desaturado, se rellena al hover. */
 .btn-danger {
   border-color: var(--color-danger);
   color: var(--color-danger);

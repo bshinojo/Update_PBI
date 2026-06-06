@@ -15,7 +15,7 @@
   line-height: 1.7;
 }
 .badge:hover {
-  background: #e2eaff;
+  background: var(--rfdd-sky-200);
 }
 .label {
   overflow: hidden;

@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- @dsCard group="Components" name="Form fields" subtitle="Inputs + labels + helper text" viewport="700x230" -->
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-family:'Inter'; font-weight:500; font-size:12px; letter-spacing:0.06em; text-transform:uppercase; color:#4A5363; }
+  .field input, .field select, .field textarea {
+    font-family:'Inter'; font-size:14px; color:#0E2543;
+    padding:10px 12px; background:#fff;
+    border:1px solid #DEE2E8; border-radius:4px;
+    transition:border-color 140ms;
+  }
+  .field input:focus, .field select:focus { outline:none; border-color:#0E2543; box-shadow:0 0 0 3px rgba(14,37,67,0.08); }
+  .field .help { font-size:12px; color:#6B7585; }
+</style>
+</head>
+<body>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    <div class="field">
+      <label>Empresa</label>
+      <input type="text" value="Molinos S.A.">
+    </div>
+    <div class="field">
+      <label>Email corporativo</label>
+      <input type="email" placeholder="nombre@empresa.com">
+    </div>
+    <div class="field" style="grid-column:1/-1;">
+      <label>Mensaje</label>
+      <textarea rows="2" placeholder="Contanos sobre tu compañía y qué necesitás."></textarea>
+      <span class="help">Tu información se trata con la más alta responsabilidad.</span>
+    </div>
+  </div>
+</body></html>

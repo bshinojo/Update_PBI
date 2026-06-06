@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- @dsCard group="Components" name="Buttons" subtitle="Primary / secondary / ghost / editorial + states" viewport="700x240" -->
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  .btn { font-family:'Inter',sans-serif; font-weight:500; font-size:14px; letter-spacing:0.02em; padding:10px 20px; border-radius:4px; border:1px solid transparent; cursor:pointer; transition:all 140ms cubic-bezier(.2,.6,.2,1); display:inline-flex; align-items:center; gap:8px; }
+  .btn-primary { background:#0E2543; color:#F7F6F2; }
+  .btn-primary:hover { background:#163058; box-shadow:0 2px 8px rgba(14,37,67,0.18); }
+  .btn-secondary { background:transparent; color:#0E2543; border-color:#0E2543; }
+  .btn-secondary:hover { background:#0E2543; color:#F7F6F2; }
+  .btn-ghost { background:transparent; color:#0E2543; }
+  .btn-ghost:hover { color:#B08B3F; }
+  .btn-editorial { background:transparent; color:#0E2543; border:none; padding:6px 0; font-size:13px; letter-spacing:0.04em; }
+  .btn-editorial::before { content:""; display:inline-block; width:32px; height:1px; background:#0E2543; margin-right:10px; vertical-align:middle; }
+</style>
+</head>
+<body>
+  <div class="label">Buttons</div>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+    <button class="btn btn-primary">Contáctanos</button>
+    <button class="btn btn-secondary">Más Info</button>
+    <button class="btn btn-ghost">Iniciar Sesión</button>
+    <button class="btn btn-editorial">Más Información</button>
+  </div>
+  <hr class="sep">
+  <div class="label">States — primary</div>
+  <div style="display:flex; gap:12px; align-items:center;">
+    <button class="btn btn-primary">Default</button>
+    <button class="btn btn-primary" style="background:#163058; box-shadow:0 2px 8px rgba(14,37,67,0.18);">Hover</button>
+    <button class="btn btn-primary" style="background:#0E2543; transform:translateY(1px);">Pressed</button>
+    <button class="btn btn-primary" style="background:#9099A7; cursor:not-allowed;">Disabled</button>
+  </div>
+</body></html>

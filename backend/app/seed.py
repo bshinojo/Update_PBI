@@ -76,7 +76,7 @@ def seed_schedules() -> list[Schedule]:
                last_run=LastRun(status="Failed", timestamp="2026-06-01T01:00:00-03:00")),
         _sched(id="sch-4", dataset_id="ds-logistica", workspace_id="ws-ops",
                tables=["Envios"],
-               frequency={"kind": "weekly", "days_of_week": [1, 3, 5], "time": "07:30"},
+               frequency={"kind": "weekly", "days_of_week": [3], "time": "07:30"},
                refresh_type="calculate", enabled=True,
                last_run=LastRun(status="Completed", timestamp="2026-06-04T07:30:00-03:00")),
         _sched(id="sch-5", dataset_id="ds-inventario", workspace_id="ws-ops",
@@ -85,7 +85,8 @@ def seed_schedules() -> list[Schedule]:
                refresh_type="full", enabled=False,
                last_run=LastRun(status="Completed", timestamp="2026-05-31T23:00:00-03:00")),
         _sched(id="sch-6", dataset_id="ds-tesoreria", workspace_id="ws-finanzas",
-               tables=["FlujoCaja"], frequency={"kind": "daily", "time": "08:00"},
+               tables=["FlujoCaja"],
+               frequency={"kind": "daily", "time": "08:00", "days_of_week": [1, 2, 3, 4, 5]},
                refresh_type="dataOnly", enabled=True,
                last_run=LastRun(status="InProgress", timestamp="2026-06-05T08:00:00-03:00")),
     ]

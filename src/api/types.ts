@@ -35,10 +35,27 @@ export interface DailyFrequency {
   kind: 'daily'
   /** "HH:mm" */
   time: string
+  /**
+   * Días JS en los que corre (0=Domingo..6=Sábado, mostrados Lunes-primero).
+   * Ausente o lista vacía = todos los días.
+   */
+  daysOfWeek?: number[]
 }
 export interface HourlyFrequency {
   kind: 'hourly'
-  everyHours: number
+  /** Intervalo en horas enteras. Compat con schedules viejos. */
+  everyHours?: number
+  /** Intervalo en minutos (sub-hora: 15/20/30). Tiene prioridad sobre everyHours. */
+  everyMinutes?: number
+  /** Inicio de la franja horaria (0..23). Ausente = desde la medianoche (00). */
+  startHour?: number
+  /** Fin de la franja horaria, inclusive (0..23). Ausente = hasta las 23. */
+  endHour?: number
+  /**
+   * Días JS en los que corre (0=Domingo..6=Sábado, mostrados Lunes-primero).
+   * Ausente o lista vacía = todos los días.
+   */
+  daysOfWeek?: number[]
 }
 export interface WeeklyFrequency {
   kind: 'weekly'

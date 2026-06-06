@@ -23,7 +23,7 @@
 }
 .skeletonRow {
   height: 12px;
-  background: #ececef;
+  background: var(--color-disabled-bg);
   border-radius: var(--radius);
 }
 

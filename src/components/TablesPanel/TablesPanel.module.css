@@ -4,26 +4,6 @@
   min-height: 0;
   background: var(--color-bg);
 }
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
-}
-.title {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-muted);
-}
-.count {
-  font-size: var(--fs-sm);
-  color: var(--color-accent);
-}
 .body {
   flex: 1;
   min-height: 0;
@@ -48,9 +28,9 @@
   font-size: var(--fs-xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--color-faint);
-  background: var(--color-surface);
+  letter-spacing: 0.12em;
+  color: var(--color-muted);
+  background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
 }
 .checkCol {
@@ -67,6 +47,13 @@
 }
 .rowChecked {
   background: var(--color-selected-bg);
+}
+/* Fila(s) de la programación que se está editando: tinte + acento gold a la izquierda. */
+.rowEditing {
+  background: var(--color-selected-bg);
+}
+.rowEditing td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-gold-strong);
 }
 .checkCell {
   width: 40px;

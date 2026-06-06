@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from './api'
 import { isSuccess } from './api/remote-data'
 import type { Schedule, ScheduleMutationResult } from './api/types'
+import { AppHeader } from './components/AppHeader/AppHeader'
 import { SchedulePanel } from './components/ScheduleForm/SchedulePanel'
 import { TablesPanel } from './components/TablesPanel/TablesPanel'
 import { TopSelect } from './components/TopSelect/TopSelect'
@@ -104,6 +105,8 @@ function Shell() {
 
   return (
     <div className={styles.app}>
+      <AppHeader />
+
       <header className={styles.topbar}>
         <div className={styles.selectors}>
           <TopSelect
@@ -137,6 +140,7 @@ function Shell() {
         <TablesPanel
           data={tables.state}
           checked={selection.checkedTables}
+          editingTables={editing ? editing.tables : []}
           onToggle={handleToggle}
           onSetChecked={handleSetChecked}
           onEditBadge={handleEditBadge}

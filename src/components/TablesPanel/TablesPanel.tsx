@@ -4,12 +4,15 @@ import type { Schedule } from '../../api/types'
 import type { DatasetTablesView } from '../../hooks/useTables'
 import { EmptyState } from '../common/EmptyState'
 import { Skeleton } from '../common/Skeleton'
+import { KpiStrip, type KpiItem } from '../KpiStrip/KpiStrip'
 import { TableRow } from './TableRow'
 import styles from './TablesPanel.module.css'
 
 interface TablesPanelProps {
   data: RemoteData<DatasetTablesView>
   checked: ReadonlySet<string>
+  /** Tablas de la programación que se está editando (para resaltarlas). */
+  editingTables: string[]
   onToggle: (name: string) => void
   onSetChecked: (names: string[]) => void
   onEditBadge: (schedule: Schedule) => void
@@ -18,10 +21,12 @@ interface TablesPanelProps {
 export function TablesPanel({
   data,
   checked,
+  editingTables,
   onToggle,
   onSetChecked,
   onEditBadge,
 }: TablesPanelProps) {
+  const editingSet = useMemo(() => new Set(editingTables), [editingTables])
   const scheduleById = useMemo(() => {
     const map = new Map<string, Schedule>()
     if (data.status === 'success') {
@@ -35,14 +40,37 @@ export function TablesPanel({
   const allChecked = allNames.length > 0 && allNames.every((n) => checked.has(n))
   const indeterminate = !allChecked && allNames.some((n) => checked.has(n))
 
+  // Resumen del modelo para la tira de KPIs (presentacional, derivado del estado).
+  const kpis = useMemo<KpiItem[] | null>(() => {
+    if (tables.length === 0) return null
+    let scheduled = 0
+    let paused = 0
+    let unscheduled = 0
+    for (const t of tables) {
+      if (!t.scheduleId) {
+        unscheduled++
+        continue
+      }
+      const s = scheduleById.get(t.scheduleId)
+      if (s && s.enabled === false) paused++
+      else scheduled++
+    }
+    return [
+      { label: 'Tablas', value: tables.length, note: 'en el modelo' },
+      { label: 'Programadas', value: scheduled, note: 'activas', noteTone: 'pos' },
+      {
+        label: 'En pausa',
+        value: paused,
+        note: 'pausadas',
+        noteTone: paused > 0 ? 'warn' : 'muted',
+      },
+      { label: 'Sin programar', value: unscheduled, note: 'sin schedule', noteTone: 'muted' },
+    ]
+  }, [tables, scheduleById])
+
   return (
     <section className={styles.panel}>
-      <div className={styles.toolbar}>
-        <div className={styles.title}>Tablas</div>
-        {checked.size > 0 ? (
-          <div className={styles.count}>{checked.size} seleccionadas</div>
-        ) : null}
-      </div>
+      {kpis ? <KpiStrip items={kpis} /> : null}
 
       <div className={styles.body}>
         {data.status === 'idle' ? (
@@ -83,6 +111,7 @@ export function TablesPanel({
                   table={t}
                   schedule={t.scheduleId ? scheduleById.get(t.scheduleId) : undefined}
                   checked={checked.has(t.name)}
+                  editing={editingSet.has(t.name)}
                   onToggle={() => onToggle(t.name)}
                   onEditBadge={onEditBadge}
                 />

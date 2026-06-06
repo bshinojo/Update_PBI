@@ -1,0 +1,57 @@
+<!doctype html>
+<!-- @dsCard group="UI Kit — Dashboard" name="Dashboard — Tablero de Resultados" subtitle="Power BI–style management dashboard in RFDD palette" viewport="1280x760" -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero de Resultados — RFDD</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #F7F6F2; }
+  body { font-family: 'Inter', sans-serif; color: #0E2543; -webkit-font-smoothing: antialiased; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="DashHeader.jsx"></script>
+<script type="text/babel" src="FilterBar.jsx"></script>
+<script type="text/babel" src="KpiTile.jsx"></script>
+<script type="text/babel" src="BarChart.jsx"></script>
+<script type="text/babel" src="LineChart.jsx"></script>
+<script type="text/babel" src="Donut.jsx"></script>
+<script type="text/babel" src="DataTable.jsx"></script>
+
+<script type="text/babel">
+  function App() {
+    return (
+      <div data-screen-label="RFDD Dashboard">
+        <DashHeader title="Tablero de Resultados" subtitle="Cliente · Bimbo Argentina"/>
+        <FilterBar/>
+        <main style={{ maxWidth: 1280, margin: '0 auto', padding: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+            <KpiTile label="Ventas Netas" value="$ 184,2 M" delta="+12,4%" deltaKind="pos" sub="vs presup."/>
+            <KpiTile label="Margen Bruto" value="28,7 %"     delta="−1,8 pp" deltaKind="neg" sub="vs presup."/>
+            <KpiTile label="EBITDA"        value="$ 38,4 M" delta="+6,1%"  deltaKind="pos" sub="vs año ant."/>
+            <KpiTile label="Días de Cobro" value="42 d"     delta="Estable" deltaKind="warn"/>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+            <BarChart/>
+            <LineChart/>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 16, marginTop: 16 }}>
+            <Donut/>
+            <DataTable/>
+          </div>
+        </main>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

@@ -11,6 +11,7 @@ import {
   REFRESH_TYPE_HINT_ES,
   TIMEZONE_LABEL,
 } from '../../domain/labels'
+import { formatFrequency } from '../../domain/frequency'
 import { FrequencyFields } from './FrequencyFields'
 import { useScheduleForm } from './useScheduleForm'
 import styles from './ScheduleForm.module.css'
@@ -47,7 +48,9 @@ export function SchedulePanel({
   onSaved,
   onCancelEdit,
 }: SchedulePanelProps) {
-  const { state, patch, toggleWeeklyDay, build } = useScheduleForm(editing ?? undefined)
+  const { state, patch, toggleDailyDay, toggleHourlyDay, build } = useScheduleForm(
+    editing ?? undefined,
+  )
   const [errors, setErrors] = useState<string[]>([])
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -55,6 +58,10 @@ export function SchedulePanel({
   const isEdit = editing !== null
   const targetTables = isEdit ? editing.tables : checkedTableNames
   const canCreate = targetTables.length > 0 && !!workspaceId && !!datasetId
+
+  // Vista previa en vivo de la programación (solo si el form es válido).
+  const built = build()
+  const previewText = built.ok ? formatFrequency(built.frequency) : null
 
   async function handleSave() {
     const result = build()
@@ -106,28 +113,46 @@ export function SchedulePanel({
   return (
     <section className={styles.rail} aria-label="Programación">
       <div className={styles.railHeader}>
-        <h2 className={styles.heading}>{isEdit ? 'Editar programación' : 'Nueva programación'}</h2>
+        <div className={styles.railHeading}>
+          <span className={styles.eyebrow}>Programación</span>
+          <h2 className={styles.heading}>{isEdit ? 'Editar programación' : 'Nueva programación'}</h2>
+        </div>
         {isEdit ? (
           <button type="button" className={styles.newLink} onClick={onCancelEdit} disabled={busy}>
             + Nueva
           </button>
-        ) : null}
-      </div>
-
-      <div className={styles.targets}>
-        {targetTables.length === 0 ? (
-          'Tildá una o más tablas en la lista para programarlas.'
         ) : (
-          <>
-            <span className={styles.targetsStrong}>
-              {targetTables.length} {targetTables.length === 1 ? 'tabla' : 'tablas'}
-            </span>
-            : {targetTables.join(', ')}
-          </>
+          <button
+            type="button"
+            className={`btn btn-primary ${styles.cta}`}
+            onClick={handleSave}
+            disabled={busy || !canCreate}
+            title={canCreate ? undefined : 'Tildá al menos una tabla'}
+          >
+            {busy
+              ? 'Programando…'
+              : `Programar${targetTables.length > 0 ? ` ${targetTables.length}` : ''}`}
+          </button>
         )}
       </div>
 
       <div className={styles.body}>
+        {targetTables.length === 0 ? (
+          <p className={styles.emptyHint}>
+            Tildá una o más tablas de la izquierda para programarlas.
+          </p>
+        ) : (
+          <div className={styles.targets}>
+            <span className={styles.targetsLabel}>
+              {isEdit ? 'Editando' : 'Tablas seleccionadas'}
+            </span>
+            <span className={styles.targetsText}>
+              <strong>{targetTables.length}</strong>{' '}
+              {targetTables.length === 1 ? 'tabla' : 'tablas'} · {targetTables.join(', ')}
+            </span>
+          </div>
+        )}
+
         {!isEdit && reassignTables.length > 0 ? (
           <div className={styles.warn}>
             {reassignTables.length === 1
@@ -155,7 +180,12 @@ export function SchedulePanel({
           </div>
         </div>
 
-        <FrequencyFields state={state} patch={patch} toggleWeeklyDay={toggleWeeklyDay} />
+        <FrequencyFields
+          state={state}
+          patch={patch}
+          toggleDailyDay={toggleDailyDay}
+          toggleHourlyDay={toggleHourlyDay}
+        />
 
         <div className={styles.tz}>
           Zona horaria: <strong>{TIMEZONE_LABEL}</strong>
@@ -163,32 +193,57 @@ export function SchedulePanel({
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Tipo de refresh</span>
-          <div className={styles.radios}>
+          <div className={styles.cards}>
             {REFRESH_TYPES.map((rt) => (
-              <label key={rt} className={styles.radio}>
+              <label
+                key={rt}
+                className={state.refreshType === rt ? `${styles.card} ${styles.cardActive}` : styles.card}
+              >
                 <input
                   type="radio"
                   name="refreshType"
                   checked={state.refreshType === rt}
                   onChange={() => patch({ refreshType: rt })}
                 />
-                <span>
-                  <span className={styles.radioLabel}>{REFRESH_TYPE_ES[rt]}</span>
-                  <span className={styles.radioHint}>{REFRESH_TYPE_HINT_ES[rt]}</span>
+                <span className={styles.cardLabel}>
+                  {REFRESH_TYPE_ES[rt]}
+                  {rt === 'full' ? (
+                    <span className={styles.recommended}> (recomendado)</span>
+                  ) : null}
                 </span>
+                <span className={styles.cardHint}>{REFRESH_TYPE_HINT_ES[rt]}</span>
               </label>
             ))}
           </div>
         </div>
 
         <label className={styles.toggleRow}>
+          <span className={styles.toggleText}>
+            <span className={styles.toggleTitle}>Habilitado</span>
+            <span className={styles.toggleHint}>
+              Si lo desactivás, la programación se guarda pero no se ejecuta.
+            </span>
+          </span>
           <input
             type="checkbox"
+            className={styles.switch}
+            role="switch"
             checked={state.enabled}
             onChange={(e) => patch({ enabled: e.target.checked })}
           />
-          <span>Habilitado</span>
         </label>
+
+        {previewText ? (
+          <div className={styles.summary}>
+            <span className={styles.summaryLabel}>Resumen</span>
+            <span className={styles.summaryText}>
+              {previewText} · {REFRESH_TYPE_ES[state.refreshType]}
+            </span>
+            <span className={styles.summaryMeta}>
+              {TIMEZONE_LABEL} · {state.enabled ? 'Habilitada' : 'En pausa'}
+            </span>
+          </div>
+        ) : null}
 
         {errors.length > 0 ? (
           <ul className={styles.errors}>
@@ -200,35 +255,16 @@ export function SchedulePanel({
         {submitError ? <div className={styles.submitError}>{submitError}</div> : null}
       </div>
 
-      <div className={styles.footer}>
-        {isEdit ? (
-          <>
-            <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={busy}>
-              Eliminar
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleSave}
-              disabled={busy}
-            >
-              {busy ? 'Guardando…' : 'Guardar cambios'}
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className={`btn btn-primary ${styles.grow}`}
-            onClick={handleSave}
-            disabled={busy || !canCreate}
-            title={canCreate ? undefined : 'Tildá al menos una tabla'}
-          >
-            {busy
-              ? 'Programando…'
-              : `Programar${targetTables.length > 0 ? ` ${targetTables.length}` : ''}`}
+      {isEdit ? (
+        <div className={styles.footer}>
+          <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={busy}>
+            Eliminar
           </button>
-        )}
-      </div>
+          <button type="button" className="btn btn-primary" onClick={handleSave} disabled={busy}>
+            {busy ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      ) : null}
     </section>
   )
 }
