@@ -1,0 +1,104 @@
+.wrap {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--color-bg);
+}
+
+/* Tarjeta editorial RFDD: blanco, hairline, sombra navy sutil. */
+.card {
+  width: 100%;
+  max-width: 820px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  padding: 48px;
+}
+
+.eyebrow {
+  margin: 0 0 var(--space-3);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-gold-strong);
+}
+
+.title {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 50px;
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.lead {
+  margin: 0 0 var(--space-6);
+  font-family: var(--font-serif);
+  font-size: 30px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+.lead em {
+  font-style: italic;
+  color: var(--color-gold-strong);
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.step {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.num {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: 700;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepTitle {
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+.stepText {
+  margin-top: var(--space-1);
+  font-size: 22px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.note {
+  margin: var(--space-6) 0 0;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  font-size: 20px;
+  line-height: 1.4;
+  color: var(--color-faint);
+}
+.note strong {
+  color: var(--color-muted);
+}

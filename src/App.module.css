@@ -25,6 +25,12 @@
   /* El rail de programación ocupa la mitad de la pantalla (mínimo). */
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
+/* Workspace "--GENERAL--": el instructivo ocupa todo el ancho. */
+.layoutGeneral {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
 
 @media (max-width: 760px) {
   .layout {

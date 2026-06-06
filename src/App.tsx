@@ -6,11 +6,17 @@ import { AppHeader } from './components/AppHeader/AppHeader'
 import { SchedulePanel } from './components/ScheduleForm/SchedulePanel'
 import { TablesPanel } from './components/TablesPanel/TablesPanel'
 import { TopSelect } from './components/TopSelect/TopSelect'
+import { WelcomeGuide } from './components/WelcomeGuide/WelcomeGuide'
 import { useDatasets } from './hooks/useDatasets'
 import { useTables } from './hooks/useTables'
 import { useWorkspaces } from './hooks/useWorkspaces'
 import { SelectionProvider, useSelection } from './state/SelectionContext'
 import styles from './App.module.css'
+
+// Workspace sintético de bienvenida (no existe en Power BI): es la entrada por
+// defecto. Muestra un instructivo en vez de tablas y no carga modelos.
+const GENERAL_ID = '__general__'
+const GENERAL_WORKSPACE = { id: GENERAL_ID, name: '--GENERAL--' }
 
 export default function App() {
   return (
@@ -23,15 +29,31 @@ export default function App() {
 function Shell() {
   const selection = useSelection()
   const workspaces = useWorkspaces()
-  const datasets = useDatasets(selection.selectedWorkspaceId)
-  const tables = useTables(selection.selectedDatasetId)
+  const isGeneral = selection.selectedWorkspaceId === GENERAL_ID
+  // En "--GENERAL--" no hay modelos reales que cargar.
+  const datasets = useDatasets(isGeneral ? null : selection.selectedWorkspaceId)
+  const tables = useTables(isGeneral ? null : selection.selectedDatasetId)
 
   // Schedule que se está editando en el rail; null = "nueva programación".
   const [editing, setEditing] = useState<Schedule | null>(null)
   const [resetting, setResetting] = useState(false)
 
-  const workspaceOptions = isSuccess(workspaces.state) ? workspaces.state.data : []
-  const datasetOptions = isSuccess(datasets.state) ? datasets.state.data : []
+  // "--GENERAL--" siempre primero: es la entrada por defecto.
+  const workspaceOptions = useMemo(
+    () => [GENERAL_WORKSPACE, ...(isSuccess(workspaces.state) ? workspaces.state.data : [])],
+    [workspaces.state],
+  )
+  // Filtramos por el workspace actual: al cambiar de workspace, `datasets.state`
+  // todavía refleja el anterior por un render (el refetch corre en un effect, después
+  // del render). Sin este filtro, el auto-select de abajo elegiría un dataset del
+  // workspace viejo y la tabla mostraría el modelo equivocado.
+  const datasetOptions = useMemo(
+    () =>
+      isSuccess(datasets.state)
+        ? datasets.state.data.filter((d) => d.workspaceId === selection.selectedWorkspaceId)
+        : [],
+    [datasets.state, selection.selectedWorkspaceId],
+  )
 
   // Auto-seleccionar el primer workspace y el primer modelo: arranca mostrando
   // tablas sin clicks previos.
@@ -113,15 +135,15 @@ function Shell() {
             label="Workspace"
             value={selection.selectedWorkspaceId}
             options={workspaceOptions}
-            loading={!isSuccess(workspaces.state)}
+            specialIds={[GENERAL_ID]}
             onChange={selection.selectWorkspace}
           />
           <TopSelect
             label="Modelo"
             value={selection.selectedDatasetId}
             options={datasetOptions}
-            loading={!!selection.selectedWorkspaceId && !isSuccess(datasets.state)}
-            disabled={!selection.selectedWorkspaceId}
+            loading={!isGeneral && !!selection.selectedWorkspaceId && !isSuccess(datasets.state)}
+            disabled={isGeneral || !selection.selectedWorkspaceId}
             onChange={selection.selectDataset}
           />
         </div>
@@ -136,26 +158,32 @@ function Shell() {
         </button>
       </header>
 
-      <main className={styles.layout}>
-        <TablesPanel
-          data={tables.state}
-          checked={selection.checkedTables}
-          editingTables={editing ? editing.tables : []}
-          onToggle={handleToggle}
-          onSetChecked={handleSetChecked}
-          onEditBadge={handleEditBadge}
-        />
-        <SchedulePanel
-          key={editing ? `edit-${editing.id}` : 'new'}
-          editing={editing}
-          workspaceId={selection.selectedWorkspaceId}
-          datasetId={selection.selectedDatasetId}
-          checkedTableNames={checkedTableNames}
-          reassignTables={reassignTables}
-          onSaved={handleSaved}
-          onCancelEdit={() => setEditing(null)}
-        />
-      </main>
+      {isGeneral ? (
+        <main className={styles.layoutGeneral}>
+          <WelcomeGuide />
+        </main>
+      ) : (
+        <main className={styles.layout}>
+          <TablesPanel
+            data={tables.state}
+            checked={selection.checkedTables}
+            editingTables={editing ? editing.tables : []}
+            onToggle={handleToggle}
+            onSetChecked={handleSetChecked}
+            onEditBadge={handleEditBadge}
+          />
+          <SchedulePanel
+            key={editing ? `edit-${editing.id}` : 'new'}
+            editing={editing}
+            workspaceId={selection.selectedWorkspaceId}
+            datasetId={selection.selectedDatasetId}
+            checkedTableNames={checkedTableNames}
+            reassignTables={reassignTables}
+            onSaved={handleSaved}
+            onCancelEdit={() => setEditing(null)}
+          />
+        </main>
+      )}
     </div>
   )
 }
