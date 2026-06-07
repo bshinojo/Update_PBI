@@ -1,12 +1,10 @@
 # Store de schedules persistido en un archivo JSON (cero dependencias de DB:
-# portable y rápido para el VPS). Es el port fiel de src/api/mock/store.ts:
-# mantiene el invariante "cada schedule tiene >= 1 tabla" y la reasignación de
-# tablas entre schedules del mismo dataset.
+# portable y rápido para el VPS). Mantiene el invariante "cada schedule tiene
+# >= 1 tabla" y la reasignación de tablas entre schedules del mismo dataset.
 #
-# Diferencia de diseño con el mock: las tablas NO guardan scheduleId acá. El
-# universo de tablas lo da el DataSource (seed o Power BI) y el scheduleId se
-# DERIVA de los schedules en cada respuesta (build_result). Así un mismo store
-# sirve tanto para datos de ejemplo como para Power BI.
+# Diferencia de diseño con el mock original: las tablas NO guardan scheduleId acá.
+# El universo de tablas lo da el DataSource (Power BI) y el scheduleId se DERIVA de
+# los schedules en cada respuesta (build_result).
 import json
 import threading
 import uuid
@@ -22,7 +20,6 @@ from .models import (
     TableInfo,
     UpdateScheduleInput,
 )
-from . import seed
 
 
 class NotFoundError(Exception):
@@ -49,11 +46,11 @@ class ScheduleStore:
                 if isinstance(raw, list):
                     return [Schedule.model_validate(item) for item in raw]
             except (json.JSONDecodeError, ValueError):
-                # Archivo corrupto o esquema viejo: re-sembramos en vez de crashear.
+                # Archivo corrupto o esquema viejo: arrancamos vacío en vez de crashear.
                 pass
-        schedules = seed.seed_schedules()
-        self._persist(schedules)
-        return schedules
+        # Primera vez (o archivo ilegible): sin schedules todavía.
+        self._persist([])
+        return []
 
     def _persist(self, schedules: list[Schedule]) -> None:
         data = [s.model_dump(by_alias=True, exclude_none=True) for s in schedules]

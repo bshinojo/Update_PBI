@@ -2,18 +2,16 @@
 
 Backend **FastAPI** que implementa el contrato `ScheduleApi` del frontend
 (`src/api/client.ts`). Persiste los schedules en un archivo JSON (sin base de datos:
-portable y liviano para el VPS) y, cuando se le dan credenciales, lee de Power BI.
+portable y liviano para el VPS) y lee / dispara refreshes contra **Power BI real**.
 
 ## Características
 
 - **8 endpoints** que espejan el contrato (ver tabla abajo), con JSON en **camelCase**
   idéntico a `src/api/types.ts` — el `HttpScheduleApi` del front no necesita mapear nada.
 - **Sin DB:** los schedules se guardan en `schedules.json` (configurable). Escritura atómica.
-- **Reasignación de tablas** e invariante "cada schedule ≥ 1 tabla", port fiel de
-  `src/api/mock/store.ts`.
-- **Credenciales por `.env`** (prefijo `PBI_`). Cambiar de modo o de credenciales es editar
-  el `.env` y reiniciar — nada hardcodeado.
-- **Modo seed por defecto:** arranca y funciona sin credenciales (datos de ejemplo).
+- **Reasignación de tablas** e invariante "cada schedule ≥ 1 tabla".
+- **Credenciales por `.env`** (prefijo `PBI_`). Son **obligatorias**: sin ellas el backend
+  no arranca. Cambiar credenciales es editar el `.env` y reiniciar — nada hardcodeado.
 
 ## Correr en local
 
@@ -22,22 +20,21 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env             # opcional; por defecto corre en modo "seed"
+cp .env.example .env             # y completá las credenciales de Power BI
 ./run.sh                         # uvicorn en http://127.0.0.1:8000 (--reload)
 # docs interactivas: http://127.0.0.1:8000/docs
 ```
 
-Apuntá el frontend al backend con `VITE_API_MODE=http npm run dev` (en la raíz del repo).
-El `HttpScheduleApi` usa `baseUrl='/api'` y Vite proxya `/api` → este backend en `:8000`
-(ver `vite.config.ts`; override con `VITE_API_PROXY_TARGET`). En prod nginx hace el mismo
-proxy. Verificado end-to-end: el `HttpScheduleApi` real corre contra esta API sin cambios.
+Apuntá el frontend al backend con `npm run dev` (en la raíz del repo). El `HttpScheduleApi`
+usa `baseUrl='/api'` y Vite proxya `/api` → este backend en `:8000` (ver `vite.config.ts`;
+override con `VITE_API_PROXY_TARGET`). En prod nginx hace el mismo proxy. Verificado
+end-to-end: el `HttpScheduleApi` real corre contra esta API sin cambios.
 
 ## Configuración (`.env`, prefijo `PBI_`)
 
 | Variable | Default | Para qué |
 |---|---|---|
-| `PBI_DATA_SOURCE` | `seed` | `seed` (datos de ejemplo) o `powerbi` (REST API real) |
-| `PBI_TENANT_ID` / `PBI_CLIENT_ID` / `PBI_CLIENT_SECRET` | — | Service principal de Azure AD (solo modo `powerbi`) |
+| `PBI_TENANT_ID` / `PBI_CLIENT_ID` / `PBI_CLIENT_SECRET` | — | Service principal de Azure AD (**obligatorias**) |
 | `PBI_SCOPE` | `…/powerbi/api/.default` | Scope del token |
 | `PBI_API_BASE` | `https://api.powerbi.com/v1.0/myorg` | Base REST (override para clouds soberanos) |
 | `PBI_AUTHORITY` | `https://login.microsoftonline.com` | Autoridad de Azure AD |
@@ -57,7 +54,7 @@ proxy. Verificado end-to-end: el `HttpScheduleApi` real corre contra esta API si
 | PUT | `/schedules/{id}/enabled` | `{ enabled }` | `ScheduleMutationResult` |
 | DELETE | `/schedules/{id}` | — | `ScheduleMutationResult` |
 
-`GET /health` devuelve `{ status, dataSource }`.
+`GET /health` devuelve `{ status }`.
 
 ## Despliegue en el VPS (Hetzner / Linux)
 
@@ -110,12 +107,10 @@ habilitados vencieron, los dispara y registra el `lastRun` (`InProgress` → `Co
     y/o restringido a ciertos `daysOfWeek`. Sin franja = todo el día (00..23); sin días = todos.
 - **Quién ejecuta el refresh** lo decide `app/executor.py`, con un protocolo de dos fases
   (`start` / `poll`) porque el refresh real es **asíncrono**:
-  - `start(schedule)` dispara y devuelve un token para pollear (o `None` si el resultado ya es
-    final: seed instantáneo, o Power BI sin id).
+  - `start(schedule)` dispara y devuelve un token para pollear (o `None` si Power BI no informa id).
   - `poll(schedule, token)` consulta el estado y devuelve `InProgress` / `Completed` / `Failed`.
-  - En modo `seed` es instantáneo por defecto; con `PBI_SEED_SIMULATE_REFRESH_TICKS > 0` simula
-    un refresh que tarda N polls (para ver el "En curso" progresar en la demo). En modo `powerbi`
-    usa `PowerBIClient.refresh_dataset()` (devuelve el `refreshId`) y `get_refresh_status()`.
+  - Usa `PowerBIClient.refresh_dataset()` (enhanced refresh selectivo; devuelve el `refreshId`) y
+    `get_refresh_status()`.
 - **Polling**: cada tick, además de disparar los vencidos, el scheduler pollea los refreshes en
   vuelo y resuelve `InProgress → Completed/Failed`. Un schedule con un refresh en curso no se
   re-dispara hasta que termine. Si un refresh excede `PBI_REFRESH_POLL_TIMEOUT_MIN` se marca
@@ -127,19 +122,19 @@ habilitados vencieron, los dispara y registra el `lastRun` (`InProgress` → `Co
   (`--workers 1`, default). Apagar el worker: `PBI_SCHEDULER_ENABLED=0`.
 
 Config relacionada: `PBI_SCHEDULER_ENABLED` (default `true`), `PBI_SCHEDULER_TICK_SECONDS`
-(`30`), `PBI_TZ_OFFSET_HOURS` (`-3`), `PBI_REFRESH_POLL_TIMEOUT_MIN` (`120`),
-`PBI_SEED_SIMULATE_REFRESH_TICKS` (`0`).
+(`30`), `PBI_TZ_OFFSET_HOURS` (`-3`), `PBI_REFRESH_POLL_TIMEOUT_MIN` (`120`).
 
 ### Tests
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                 # nextrun + scheduler (reloj controlado) + endpoints
+pytest                 # nextrun + scheduler (reloj controlado) + executor + endpoints
 ```
 
-> Nota: `PowerBIClient` sigue la documentación oficial pero **no se pudo probar contra el
-> servicio real** (sin credenciales todavía). La lógica de disparo + polling está testeada con
-> un cliente falso; lo que falta confirmar contra Power BI real es: (1) `list_tables` (usa DAX
-> `INFO.VIEW.TABLES()`; requiere XMLA/ejecución de consultas habilitado), (2) de qué header sale
-> el `refreshId` del enhanced refresh (`Location` / `x-ms-request-id`) y (3) los strings de estado
-> (`Unknown`/`Completed`/`Failed`/...). Son ajustes de nombres en un solo archivo (`powerbi/client.py`).
+Los tests corren **sin credenciales**: usan una `FakeDataSource` y un executor falso
+(ver `tests/_fixtures.py` y `tests/conftest.py`), así que no tocan Power BI ni la red.
+
+> Las **lecturas** (workspaces / datasets / tablas vía DAX `INFO.VIEW.TABLES()`, requiere XMLA)
+> están verificadas contra un tenant real, igual que el disparo del **enhanced refresh**
+> (`refresh_dataset` → `refreshId` del header `Location`) y el polling de estado. Ver CLAUDE.md
+> para los detalles de la verificación.

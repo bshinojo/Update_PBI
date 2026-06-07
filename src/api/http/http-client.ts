@@ -1,7 +1,6 @@
-// Cliente HTTP real (FastAPI). Hoy es un esqueleto que COMPILA contra el mismo
-// contrato ScheduleApi pero no se usa (el modo por defecto es 'mock').
-// Cuando exista el backend: ajustar baseUrl, mapear snake_case <-> camelCase acá
-// si hiciera falta, y poner VITE_API_MODE=http. NINGÚN componente cambia.
+// Cliente HTTP real contra el backend FastAPI (baseUrl '/api'). Implementa el
+// contrato ScheduleApi; el backend ya responde en camelCase, así que no se mapea
+// nada acá. Verificado end-to-end contra Power BI real.
 import type { ScheduleApi } from '../client'
 import { ApiError } from '../client'
 import type {

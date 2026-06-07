@@ -3,6 +3,11 @@
 Guía para sesiones futuras de Claude Code en este repo. Resume la **idea total del
 proyecto**, lo que **ya está hecho** y lo que **falta**.
 
+> **Este archivo es la fuente de verdad del estado del proyecto** y donde se trackean los
+> cambios entre sesiones: al cerrar trabajo importante, actualizalo (es lo que la próxima
+> sesión de Claude va a leer). La memoria del proyecto vive en
+> `~/.claude/projects/.../memory/` (índice en `MEMORY.md`) para datos puntuales/no obvios.
+
 ---
 
 ## 1. Qué es este proyecto (la idea total)
@@ -21,9 +26,11 @@ Alcance completo imaginado (no todo está construido todavía):
 3. **Scheduler** (⏳ falta, parte del backend): un cron/worker que dispara cada schedule a
    su hora y registra el resultado del último run.
 
-> Por ahora **no hay backend, ni autenticación, ni llamadas HTTP reales**. El frontend
-> corre 100% contra un mock en `localStorage`, detrás de una capa de servicios tipada
-> pensada para que el swap a FastAPI **no toque ningún componente**.
+> Estado actual: **frontend + backend FastAPI implementados y cableados** (el front habla
+> con el backend vía `/api`). El backend lee y dispara los refreshes contra **Power BI real**
+> y corre el scheduler. **No hay mock ni modo seed**: se quitaron en la limpieza (la app es
+> Power BI-only y requiere credenciales). Lo único pendiente/fuera de alcance es la
+> **autenticación** real (la cuenta del header es un stub visual).
 
 ### Prompt original (para no perder la intención)
 
@@ -57,8 +64,8 @@ Alcance completo imaginado (no todo está construido todavía):
   paths absolutos de SO; imports siempre con `/` (los assets, p. ej. el logo, se importan en
   TS para que Vite genere URLs relativas al `base`).
 - **Sin auth real todavía:** la barra superior (`AppHeader`) muestra cuenta + botón "Salir"
-  **mock, solo visual**. El **modo http real ya está cableado** (ver §6.A); el mock sigue
-  disponible con `VITE_API_MODE=mock`.
+  **solo visual** (stub de una futura auth). El frontend habla siempre con el backend real
+  vía `/api` (ver §6.A); no hay mock.
 
 ---
 
@@ -70,9 +77,8 @@ src/
     types.ts      Tipos de dominio (Workspace, Dataset, TableInfo, Schedule, Frequency...).
     client.ts     interface ScheduleApi (contrato) + class ApiError.
     remote-data.ts RemoteData<T> = idle | loading | success | error.
-    index.ts      Selector: VITE_API_MODE === 'http' ? HttpScheduleApi : MockScheduleApi.
-    mock/         seed.ts (datos), store.ts (localStorage + reasignación), mock-client.ts, delay.ts
-    http/         http-client.ts → HttpScheduleApi (STUB que compila; falta el backend)
+    index.ts      Expone `api` = HttpScheduleApi (única implementación).
+    http/         http-client.ts → HttpScheduleApi (baseUrl '/api', contra FastAPI)
   domain/         Lógica pura: frequency.ts (LAST_DAY=-1, formatFrequency, scheduleTime),
                   labels.ts (textos español, semana Lunes-primero), assert-never.ts
   hooks/          useRemoteData (guard de respuestas obsoletas) → useWorkspaces/useDatasets/useTables
@@ -83,14 +89,15 @@ src/
                   KpiStrip (tira de KPI tiles del modelo: tablas/programadas/en pausa/sin programar),
                   ScheduleForm/ (SchedulePanel = rail lateral + FrequencyFields + useScheduleForm),
                   ScheduleBadge, StatusIndicator, y primitivos en common/ (Icon, Skeleton, EmptyState)
-  App.tsx         Layout one-pager: AppHeader (marca + cuenta) + barra de selectores
-                  (Workspace/Modelo) + grid [tabla | rail de programación a MEDIA pantalla,
-                  `1fr 1fr`]. Auto-selecciona el primer workspace/modelo.
+  App.tsx         Layout one-pager master-detail: AppHeader (marca + cuenta) + barra de
+                  selectores (Workspace/Modelo) + grid [tabla (lista, flexible) | rail de
+                  programación (detalle, ancho fijo `clamp(400px,34vw,520px)`)]. Auto-selecciona
+                  el primer workspace/modelo.
 ```
 
-**Regla de oro del seam:** ningún archivo fuera de `src/api/` debe importar de `api/mock/` ni
-`api/http/`. Solo se importa `{ api }` desde `src/api` y los tipos. Eso es lo que hace que el
-swap a FastAPI sea una sola línea.
+**Regla de oro del seam:** ningún archivo fuera de `src/api/` debe importar de `api/http/`.
+Solo se importa `{ api }` desde `src/api` y los tipos. Eso mantiene la implementación HTTP
+encapsulada detrás del contrato `ScheduleApi`.
 
 **Flujo de mutaciones:** las mutaciones del API devuelven `ScheduleMutationResult`
 (`{ affected: Schedule|null, tables: TableInfo[] }`) y `useTables.applyMutation()` reconstruye
@@ -106,7 +113,8 @@ un backend real con latencia.
   anterior; si el anterior queda vacío, se elimina) y el rail **avisa** qué tablas se mueven.
 - **UI one-pager** (decidido con el usuario): sin drill-down ni modal. Workspace y Modelo son
   dos `select` en una barra de selectores; la tabla ocupa el ancho; el formulario de programación
-  vive en un **rail fijo a la derecha que ocupa la mitad de la pantalla** (grid `1fr 1fr`; crear
+  vive en un **rail fijo a la derecha de ancho cómodo** (master-detail; tabla flexible + rail
+  `clamp(400px,34vw,520px)`; crear
   sobre las tildadas / editar al clickear un badge). Tocar la selección de tablas sale del modo edición.
 - **Diseño RFDD** (pedido por el usuario): se adoptó el design system de la firma
   (`rfdd-design-system/`) en reemplazo de la estética flat. Detalles de tokens/tipos en §2.
@@ -116,17 +124,25 @@ un backend real con latencia.
 - **Formulario de programación rediseñado** (pedido del usuario, "más vistoso y moderno"):
   segmented de frecuencia full-width (pill navy), tipo de refresh como **option-cards compactas
   de una línea** (la primera, Completo, marcada `(recomendado)` en gold), "Habilitado" como
-  **toggle switch**, **tarjeta de Resumen en vivo** (acento gold), y el texto de tablas objetivo
-  **integrado en el cuerpo** (tarjeta sutil / hint), ya no en una barra aislada. El CTA
-  **"Programar"** vive en el **header del rail** (a la derecha del título, grande + sombra,
-  deshabilitado si no hay tablas); en modo edición el footer tiene Eliminar / Guardar.
+  **toggle switch**, **tarjeta de Resumen en vivo** y el texto de tablas objetivo **integrado en
+  el cuerpo** (tarjeta sutil / hint). **Cards estilo RFDD** (pedido del usuario, reemplazan la
+  barra de acento a la izquierda "estilo Claude"): borde hairline + sombra navy sutil; el Resumen
+  lleva **regla superior gold** (`border-top`) como flourish de marca.
+- **Acciones del rail** (cambio pedido por el usuario): en alta, el CTA **"Programar N"** vive en
+  el header (a la derecha del título). En **edición**, los botones **Eliminar / Guardar cambios**
+  van TAMBIÉN en el header, al lado de **"+ Nueva"** (`.railActions`); ya no hay footer.
 - **Panel izquierdo sin título**: se quitó el encabezado "Modelo / Tablas del modelo"; el
   `KpiStrip` encabeza directamente. Los **selectores Workspace/Modelo** (`TopSelect`) van
   destacados (grandes, valor en negrita navy, borde 1.5px) para que no pasen desapercibidos
   bajo la barra navy.
-- **Resaltado de filas en edición**: al editar/seleccionar, las filas de esas tablas en la
-  tabla izquierda se resaltan (tinte sky; las **en edición** con acento gold a la izquierda).
-  `TablesPanel` recibe `editingTables` desde `App`; ver `TableRow` (`rowChecked`/`rowEditing`).
+- **Selección de tablas por fila** (cambio pedido por el usuario): **no hay checkbox**; se
+  selecciona/deselecciona **tocando cualquier parte de la fila** (`TableRow` → `onClick`), y la
+  selección se ve por el **resaltado** (tinte sky). La fila es focusable (Tab + Enter/Espacio) con
+  `aria-label`. El badge de programación frena la propagación para que **editar** no togglee la
+  selección. "Seleccionar todas / Quitar selección" es un **botón de texto** en la cabecera "Tabla".
+- **Resaltado de filas en edición**: las filas de la programación que se edita se resaltan (tinte
+  sky + acento gold a la izquierda en la 1ª celda). `TablesPanel` recibe `editingTables` desde
+  `App`; ver `TableRow` (`rowChecked`/`rowEditing`).
 - **Frecuencias (modelo y reglas, confirmadas con el usuario):**
   - **Diario** = horario + **días de la semana** (multi, default todos). `DailyFrequency.daysOfWeek?`.
   - **Cada N** = intervalo elegido en un **combobox** que incluye **sub-hora (15/20/30 min)** y horas
@@ -142,7 +158,7 @@ un backend real con latencia.
 - **Checkbox "Habilitado"** = schedule **activo** (el scheduler lo dispara a su hora);
   destildado = **pausado** (se guarda y conserva tablas/config, pero no corre). Backend:
   `scheduler.py` solo recorre `all_enabled_schedules()`.
-- **Persistencia** del mock en `localStorage` (botón "Resetear demo" restaura el seed).
+- **Persistencia** de los schedules en el backend (`backend/schedules.json`, escritura atómica).
 - **Zona horaria** fija, display-only: `ART (UTC-3)` (no se guarda por schedule). La semana se
   muestra **empezando por Lunes**.
 - **Tipo de refresh** default = `full` (Completo). Ver tabla en sección 7.
@@ -152,7 +168,7 @@ un backend real con latencia.
 ## 5. Lo que YA está hecho (✅)
 
 - Frontend completo (layout **one-pager**: barra de marca RFDD + selectores Workspace/Modelo +
-  tabla a todo el ancho + rail de programación a **media pantalla**), badges de programación,
+  tabla (lista) + rail de programación de **ancho fijo** a la derecha), badges de programación,
   estados de último run (✓/✗/spinner/—), crear/editar/eliminar en el rail + toggle habilitar,
   "Programar" con reasignación, skeletons de carga, empty states.
 - **Diseño RFDD aplicado a fondo** (pedido explícito de que "se note más"): tema en
@@ -162,18 +178,16 @@ un backend real con latencia.
   headers de ambos paneles; **tira de KPI tiles** (`KpiStrip`) con el resumen del modelo; contador
   de selección como chip sky. Assets en `src/components/AppHeader/` (logo + olas), emblema como
   `public/favicon.svg`. Verificado por captura headless (typecheck + build limpios).
-- Capa mock con datos sembrados (3 workspaces, 2–4 modelos, 4–8 tablas, 6 schedules variados),
-  delays 300–600ms, fallos opcionales con `VITE_MOCK_FAIL=1`.
 - `npm run typecheck` y `npm run build` limpios. Build estático servible por nginx
-  (`nginx.example.conf` incluido). Verificado en navegador real (drill-down, modal, badges).
+  (`nginx.example.conf` incluido). Verificado en navegador real contra el backend.
 - **Tests unitarios del front (Vitest, `npm run test`): 19, todo verde.** Cubren la lógica pura:
   `domain/frequency.ts` (`formatFrequency`, `scheduleTime`, `hourlyIntervalMinutes`, `formatHour`)
   y la validación `ScheduleForm/useScheduleForm.buildFrequency` (todas las frecuencias + bordes).
 - **Backend FastAPI (etapa A, ver §6.A): implementado en `backend/`.** Los 8 endpoints del
   contrato, JSON camelCase idéntico a `types.ts` (sin mapeo en `http-client.ts`), persistencia
-  en archivo JSON, reasignación + invariante portados de `store.ts`, credenciales de Power BI
-  por `.env`. Modo `seed` por defecto (corre sin credenciales). Probado de punta a punta con
-  `TestClient` y con uvicorn real. **Lecturas verificadas contra Power BI real (2026-06-06):**
+  en archivo JSON, reasignación + invariante. **Power BI-only**: requiere credenciales por
+  `.env` (sin ellas no arranca). Probado de punta a punta con `TestClient` (con `FakeDataSource`
+  de test, sin credenciales) y con uvicorn real. **Lecturas verificadas contra Power BI real (2026-06-06):**
   auth, workspaces, datasets y tablas (XMLA). **Falta sólo el refresh real** (ver §6.B).
 - **Scheduler (etapa B, ver §6.B): implementado en `backend/`.** Worker en segundo plano que
   dispara los schedules a su hora (ART), **pollea** los refreshes asíncronos en vuelo y registra
@@ -206,24 +220,23 @@ Cómo quedó (ver `backend/README.md` para correr/deployar):
 - **`backend/app/models.py`**: modelos Pydantic espejando `types.ts`, serializados en camelCase
   (`alias_generator`), `Frequency` como unión discriminada por `kind`. El `time` lo deriva el
   backend (`frequency.py`), no lo manda el cliente. **No hace falta mapear nada en `http-client.ts`.**
-- **`backend/app/store.py`**: reasignación + invariante "cada schedule ≥1 tabla" (port fiel de
-  `store.ts`), persistido en archivo JSON (`PBI_DB_PATH`, escritura atómica). Diferencia de diseño:
-  las tablas NO guardan `scheduleId`; el universo de tablas lo da el `DataSource` y el `scheduleId`
-  se DERIVA de los schedules en cada respuesta (sirve igual para seed y para Power BI).
-- **`backend/app/datasource.py` + `powerbi/client.py`**: lecturas desde seed (default, sin
-  credenciales) o desde Power BI (REST API + token client-credentials). El `PowerBIClient` ya
-  tiene `refresh_dataset()` (enhanced refresh selectivo) listo para el scheduler.
-- **Credenciales por `.env`** (prefijo `PBI_`, ver `backend/.env.example`): `PBI_DATA_SOURCE=seed|powerbi`,
-  `PBI_TENANT_ID/CLIENT_ID/CLIENT_SECRET`, etc. Cambiar credenciales = editar `.env` y reiniciar.
+- **`backend/app/store.py`**: reasignación + invariante "cada schedule ≥1 tabla", persistido en
+  archivo JSON (`PBI_DB_PATH`, escritura atómica). Diferencia de diseño: las tablas NO guardan
+  `scheduleId`; el universo de tablas lo da el `DataSource` (Power BI) y el `scheduleId` se DERIVA
+  de los schedules en cada respuesta. Si no hay archivo, arranca **vacío** (sin schedules de demo).
+- **`backend/app/datasource.py` + `powerbi/client.py`**: lecturas desde Power BI (REST API + token
+  client-credentials; tablas vía XMLA/DAX). El `PowerBIClient` tiene `refresh_dataset()` (enhanced
+  refresh selectivo) y `get_refresh_status()` que usa el scheduler.
+- **Credenciales por `.env`** (prefijo `PBI_`, ver `backend/.env.example`):
+  `PBI_TENANT_ID/CLIENT_ID/CLIENT_SECRET` (obligatorias), etc. Cambiar credenciales = editar `.env`
+  y reiniciar. **No hay modo seed**: sin credenciales el backend no arranca.
 - **Las rutas usan `response_model_exclude_none`**: omiten `scheduleId`/`lastRun`/`affected` cuando
-  son `None`, así el JSON es idéntico al del mock (campos opcionales TS `?` ausentes). El front los
-  trata por truthiness en ambos casos.
+  son `None`, así los campos opcionales (TS `?`) van ausentes. El front los trata por truthiness.
 
-**Modo http ya cableado y VERIFICADO end-to-end** (sin navegador): se ejecutó el `HttpScheduleApi`
-real (bundle esbuild) contra FastAPI corriendo — 12/12 (lecturas, crear/editar/pausar/eliminar,
-reasignación, error 404, camelCase). En DEV: `cd backend && ./run.sh` + `VITE_API_MODE=http npm run dev`
-(Vite proxya `/api`→backend, ver `vite.config.ts`). En PROD: nginx proxya `/api/`→backend.
-**Ningún componente del front cambia.**
+**Modo http cableado y VERIFICADO end-to-end**: el `HttpScheduleApi` real corre contra FastAPI
+(lecturas, crear/editar/pausar/eliminar, reasignación, error 404, camelCase). En DEV:
+`cd backend && ./run.sh` + `npm run dev` (Vite proxya `/api`→backend, ver `vite.config.ts`).
+En PROD: nginx proxya `/api/`→backend. **Ningún componente del front cambia.**
 
 > ✅ **Lecturas verificadas contra Power BI real (2026-06-06)** con un service principal:
 > auth client-credentials, `GET /workspaces`, `/datasets` y `/tables` (este último vía DAX
@@ -232,7 +245,7 @@ reasignación, error 404, camelCase). En DEV: `cd backend && ./run.sh` + `VITE_A
 > (gitignored); `PBI_CLIENT_SECRET` es el **Value** del secret, no el *Secret ID* (un GUID → da
 > `AADSTS7000215`).
 
-### B) Scheduler / ejecución real — ✅ HECHO (en `backend/`), salvo el polling real de Power BI
+### B) Scheduler / ejecución real — ✅ HECHO (en `backend/`)
 
 Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para con el
 `lifespan`, comparte el store en memoria → uvicorn con 1 worker):
@@ -248,28 +261,31 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
   (Power BI no permite refreshes concurrentes sobre el mismo dataset). Un hilo daemon llama
   `tick()` cada `PBI_SCHEDULER_TICK_SECONDS`.
 - **`backend/app/executor.py`**: protocolo de dos fases `start(schedule)->token|None` y
-  `poll(schedule,token)->RunStatus` (el refresh real es asíncrono). Seed: instantáneo por
-  defecto, o simula N polls con `PBI_SEED_SIMULATE_REFRESH_TICKS`. PowerBI:
+  `poll(schedule,token)->RunStatus` (el refresh real es asíncrono). `PowerBIRefreshExecutor`:
   `refresh_dataset()` (devuelve `refreshId`) + `get_refresh_status()`; `_map_status` traduce el
   estado de PBI a `RunStatus`.
+- **Observabilidad**: los loggers `pbi.*` (scheduler/executor/powerbi) registran qué se dispara
+  y el resultado de cada refresh (incluido el POST real con su HTTP status y `refreshId`); el
+  setup está en `_configure_logging()` de `main.py`. Además, cada refresh **terminado** deja una
+  línea en el **historial** `runs.jsonl` (`app/runlog.py`: append-only JSON Lines, thread-safe y
+  **blindado** —si falla escribir, no corta el scheduler). `lastRun` (en `schedules.json`) guarda
+  solo el ÚLTIMO run por schedule; `runs.jsonl` es el histórico completo.
 - Config: `PBI_SCHEDULER_ENABLED` (true), `PBI_SCHEDULER_TICK_SECONDS` (30), `PBI_TZ_OFFSET_HOURS`
-  (-3), `PBI_REFRESH_POLL_TIMEOUT_MIN` (120), `PBI_SEED_SIMULATE_REFRESH_TICKS` (0).
+  (-3), `PBI_REFRESH_POLL_TIMEOUT_MIN` (120), `PBI_RUNS_LOG_PATH` (`runs.jsonl`), `PBI_LOG_LEVEL` (`INFO`).
 - **Tests** (`backend/tests/`, `pip install -r requirements-dev.txt && pytest`): `nextrun` (todas las
   frecuencias y bordes), scheduler con reloj controlado + executor falso (disparo, polling
-  InProgress→Completed/Failed, timeout, no re-disparo en vuelo), executor (mapeo de estados +
-  delegación al cliente con cliente falso), y los 8 endpoints. 35 tests, todo verde sin credenciales.
+  InProgress→Completed/Failed, timeout, no re-disparo en vuelo, serialización por dataset), executor
+  (mapeo de estados + delegación al cliente con cliente falso), y los 8 endpoints. Corren **sin
+  credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 33 tests, todo verde.
 
-> ⚠️ Falta verificar el **refresh real** contra Power BI: de qué header sale el `refreshId`
-> (`Location`/`x-ms-request-id`) y los strings de estado del refresh. Son ajustes de nombres en
-> `powerbi/client.py`; la lógica de polling ya está testeada. (Las lecturas ya se verificaron el
-> 2026-06-06, ver §6.A.)
+> ✅ **Lecturas y refresh verificados contra Power BI real (2026-06-06)**: auth client-credentials,
+> `/workspaces`, `/datasets`, `/tables` (XMLA/DAX `INFO.VIEW.TABLES()`) y el enhanced refresh
+> (`refresh_dataset` → `refreshId` del header `Location`) + polling de estado. Detalles en la
+> memoria del proyecto.
 
 ### C) Mejoras conocidas (opcionales)
-- **"En curso" estático del MOCK**: las corridas sembradas en InProgress del mock no se
-  auto-resuelven (es un estado de demo del front). Con el backend real progresan solas; en seed se
-  puede ver con `PBI_SEED_SIMULATE_REFRESH_TICKS>0`.
 - **Autenticación** (login, sesión) — explícitamente fuera de alcance de la etapa 1.
-- Updates optimistas, edición del set de tablas desde el modal de edición, "select-all" ya está.
+- Updates optimistas, edición del set de tablas desde el rail de edición.
 
 ---
 
@@ -292,13 +308,15 @@ npm run typecheck  # tsc --noEmit (incluye chequeo de casing cross-platform)
 npm run test       # vitest run (tests unitarios de la lógica pura del front)
 ```
 
-Variables (ver `.env.example`): `VITE_API_MODE=mock|http`, `VITE_MOCK_FAIL=1` (forzar errores).
+Necesita el backend corriendo (`cd backend && ./run.sh`); Vite proxya `/api`→`:8000`. La única
+variable del front es `VITE_API_PROXY_TARGET` (destino del proxy en dev; ver `.env.example`). La
+config del backend va en `backend/.env` (prefijo `PBI_`).
 
 ---
 
 ## 9. Convenciones al trabajar acá
 
-- Respetar el **seam**: no importar de `api/mock`/`api/http` fuera de `src/api/`.
+- Respetar el **seam**: no importar de `api/http` fuera de `src/api/` (la app usa `{ api }`).
 - Mantener el **lenguaje de marca RFDD** (navy/sky/gold/paper, Cormorant+Inter, labels en
   versalitas, sombras navy sutiles; ver §2 y `rfdd-design-system/`) y la **UI en español**.
 - Cada nivel de navegación maneja **loading + empty + error** (vía `RemoteData`).

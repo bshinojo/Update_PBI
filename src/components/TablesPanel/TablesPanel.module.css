@@ -33,17 +33,41 @@
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
 }
-.checkCol {
-  width: 40px;
-}
 .statusCol {
   width: 96px;
+}
+/* Header "Tabla" + toggle "Seleccionar todas" (reemplaza al checkbox de cabecera). */
+.thTabla {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.selectAll {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--color-accent);
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.selectAll:hover {
+  color: var(--color-gold-strong);
 }
 
 .table tbody td {
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
+}
+/* Toda la fila es clickeable para seleccionar/deseleccionar la tabla. */
+.row {
+  cursor: pointer;
+}
+.row:hover:not(.rowChecked):not(.rowEditing) {
+  background: var(--color-bg);
 }
 .rowChecked {
   background: var(--color-selected-bg);
@@ -54,10 +78,6 @@
 }
 .rowEditing td:first-child {
   box-shadow: inset 3px 0 0 var(--color-gold-strong);
-}
-.checkCell {
-  width: 40px;
-  text-align: center;
 }
 .nameCell {
   font-size: var(--fs-md);

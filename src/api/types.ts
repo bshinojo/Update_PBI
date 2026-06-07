@@ -1,6 +1,6 @@
-// Tipos de dominio compartidos por la capa mock, el (futuro) cliente HTTP,
-// los hooks y los componentes. Es el ÚNICO contrato: NO importa nada de React.
-// Cuando llegue el backend real (FastAPI) debe implementar estas mismas formas.
+// Tipos de dominio compartidos por la capa de API (HTTP), los hooks y los
+// componentes. Es el ÚNICO contrato: NO importa nada de React. El backend FastAPI
+// devuelve estas mismas formas (camelCase) para no mapear nada acá.
 
 export type RefreshType = 'full' | 'dataOnly' | 'calculate'
 export type RunStatus = 'Completed' | 'Failed' | 'InProgress'

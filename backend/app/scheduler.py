@@ -15,6 +15,7 @@ from .config import Settings
 from .executor import RefreshExecutor
 from .models import LastRun, Schedule
 from .nextrun import art_tz, next_run_at
+from .runlog import NullRunLog, RunLogger
 from .store import ScheduleStore
 
 logger = logging.getLogger("pbi.scheduler")
@@ -29,9 +30,16 @@ class _Pending:
 
 
 class Scheduler:
-    def __init__(self, store: ScheduleStore, executor: RefreshExecutor, settings: Settings) -> None:
+    def __init__(
+        self,
+        store: ScheduleStore,
+        executor: RefreshExecutor,
+        settings: Settings,
+        runlog: RunLogger | None = None,
+    ) -> None:
         self._store = store
         self._executor = executor
+        self._runlog = runlog or NullRunLog()
         self._tz = art_tz(settings.tz_offset_hours)
         self._tick_seconds = settings.scheduler_tick_seconds
         self._poll_timeout = timedelta(minutes=settings.refresh_poll_timeout_min)
@@ -109,11 +117,13 @@ class Scheduler:
         except Exception:  # noqa: BLE001 - una falla al disparar se registra como Failed
             logger.exception("Falló el disparo del schedule %s", sch.id)
             self._store.set_last_run(sch.id, LastRun(status="Failed", timestamp=ts))
+            self._record_run(sch, "Failed", refresh_id=None, started_at=ts, finished_at=ts)
             return
         if token is None:
-            # Resultado inmediato (seed instantáneo, o sin id para pollear).
+            # Resultado inmediato (Power BI no informó un id para pollear).
             self._store.set_last_run(sch.id, LastRun(status="Completed", timestamp=ts))
             logger.info("Schedule %s disparado -> Completed", sch.id)
+            self._record_run(sch, "Completed", refresh_id=None, started_at=ts, finished_at=ts)
         else:
             # Asíncrono: queda InProgress; lo resolverá el polling en próximos ticks.
             self._pending[sch.id] = _Pending(token=token, started_at=now, schedule=sch)
@@ -135,10 +145,33 @@ class Scheduler:
                 status = "Failed"
             # Estado terminal: registramos y dejamos de pollear. set_last_run devuelve
             # False si el schedule se borró mientras corría (lo descartamos igual).
-            ok = self._store.set_last_run(sid, LastRun(status=status, timestamp=now.isoformat(timespec="seconds")))
+            finished = now.isoformat(timespec="seconds")
+            ok = self._store.set_last_run(sid, LastRun(status=status, timestamp=finished))
             self._pending.pop(sid, None)
+            self._record_run(
+                pend.schedule, status, refresh_id=pend.token,
+                started_at=pend.started_at.isoformat(timespec="seconds"), finished_at=finished,
+            )
             if ok:
                 logger.info("Schedule %s refresh -> %s", sid, status)
+
+    def _record_run(
+        self, sch: Schedule, status: str, refresh_id: str | None,
+        started_at: str, finished_at: str,
+    ) -> None:
+        """Anexa una línea al historial de corridas (audit log). El RunLog está
+        blindado: si falla escribir, no propaga (no corta el scheduler)."""
+        self._runlog.append({
+            "scheduleId": sch.id,
+            "datasetId": sch.dataset_id,
+            "workspaceId": sch.workspace_id,
+            "tables": list(sch.tables),
+            "refreshType": sch.refresh_type,
+            "refreshId": refresh_id,
+            "status": status,
+            "startedAt": started_at,
+            "finishedAt": finished_at,
+        })
 
     def _gc_anchors(self) -> None:
         alive = {s.id for s in self._store.all_enabled_schedules()}

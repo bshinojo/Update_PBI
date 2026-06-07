@@ -7,6 +7,7 @@ __pycache__/
 # Variables de entorno locales
 .env
 
-# Persistencia de schedules (datos locales, no se versiona)
+# Persistencia de schedules + historial de corridas (datos locales, no se versiona)
 schedules.json
+runs.jsonl
 *.json.tmp

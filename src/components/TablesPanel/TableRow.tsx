@@ -21,22 +21,37 @@ export function TableRow({
   onToggle,
   onEditBadge,
 }: TableRowProps) {
-  const rowClass = editing ? styles.rowEditing : checked ? styles.rowChecked : undefined
+  const rowClass = [styles.row, editing ? styles.rowEditing : checked ? styles.rowChecked : '']
+    .filter(Boolean)
+    .join(' ')
+  // Toda la fila selecciona/deselecciona (se resalta al estar tildada). Sin checkbox:
+  // acceso por teclado vía la fila (Enter/Espacio). El badge frena la propagación para
+  // que editar una programación no cambie la selección.
   return (
-    <tr className={rowClass}>
-      <td className={styles.checkCell}>
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={onToggle}
-          aria-label={`Seleccionar ${table.name}`}
-        />
-      </td>
+    <tr
+      className={rowClass}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onToggle()
+        }
+      }}
+      tabIndex={0}
+      aria-label={`${checked ? 'Deseleccionar' : 'Seleccionar'} ${table.name}`}
+    >
       <td className={styles.nameCell}>{table.name}</td>
       <td className={styles.badgeCell}>
         <ScheduleBadge
           schedule={schedule}
-          onClick={schedule ? () => onEditBadge(schedule) : undefined}
+          onClick={
+            schedule
+              ? (e) => {
+                  e.stopPropagation()
+                  onEditBadge(schedule)
+                }
+              : undefined
+          }
         />
       </td>
       <td className={styles.statusCell}>

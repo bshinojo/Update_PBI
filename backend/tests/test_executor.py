@@ -1,11 +1,7 @@
 # Tests del executor: mapeo de estados de Power BI -> RunStatus, y que el
 # PowerBIRefreshExecutor delegue correctamente en el cliente (con un cliente falso,
 # sin red ni credenciales). El camino real (HTTP) queda para verificar con creds.
-from app.executor import (
-    PowerBIRefreshExecutor,
-    SeedRefreshExecutor,
-    _map_status,
-)
+from app.executor import PowerBIRefreshExecutor, _map_status
 from app.models import DailyFrequency, Schedule
 
 
@@ -27,20 +23,6 @@ def test_map_status():
     assert _map_status("Unknown") == "InProgress"
     assert _map_status("") == "InProgress"
     assert _map_status("loquesea") == "InProgress"
-
-
-def test_seed_instant_by_default():
-    ex = SeedRefreshExecutor()  # simulate_ticks=0
-    assert ex.start(_sched()) is None  # éxito inmediato, sin polling
-
-
-def test_seed_simulation_completes_after_n_polls():
-    ex = SeedRefreshExecutor(simulate_ticks=2)
-    sch = _sched()
-    token = ex.start(sch)
-    assert token is not None
-    assert ex.poll(sch, token) == "InProgress"
-    assert ex.poll(sch, token) == "Completed"
 
 
 class FakeClient:

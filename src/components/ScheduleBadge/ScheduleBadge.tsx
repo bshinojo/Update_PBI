@@ -1,10 +1,11 @@
+import type { MouseEvent } from 'react'
 import type { Schedule } from '../../api/types'
 import { formatFrequency } from '../../domain/frequency'
 import styles from './ScheduleBadge.module.css'
 
 interface ScheduleBadgeProps {
   schedule?: Schedule
-  onClick?: () => void
+  onClick?: (e: MouseEvent) => void
 }
 
 // Badge de la frecuencia del schedule. "—" si no hay; atenuado + "(pausado)" si

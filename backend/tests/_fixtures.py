@@ -1,8 +1,9 @@
-# Port de src/api/mock/seed.ts. Provee el "universo de lectura" (workspaces,
-# datasets, tablas) para el modo data_source="seed", y los schedules iniciales
-# con los que arranca el store si todavía no hay archivo de persistencia.
-from .frequency import LAST_DAY, schedule_time
-from .models import Dataset, LastRun, Schedule, TableInfo, Workspace
+# Datos de ejemplo SOLO para los tests (antes vivían en app/seed.py, que era un modo
+# de runtime; al pasar la app a Power BI-only, estos datos quedan como fixture de la
+# suite). Proveen un "universo de lectura" (workspaces/datasets/tablas) vía una
+# DataSource falsa y un set de schedules iniciales para precargar el store.
+from app.frequency import LAST_DAY, schedule_time
+from app.models import Dataset, LastRun, Schedule, TableInfo, Workspace
 
 _WORKSPACES = [
     Workspace(id="ws-ventas", name="Ventas y Comercial"),
@@ -32,28 +33,34 @@ _DATASET_DEFS = [
 ]
 
 
-def seed_workspaces() -> list[Workspace]:
-    return [w.model_copy(deep=True) for w in _WORKSPACES]
+class FakeDataSource:
+    """DataSource en memoria para los tests (no requiere credenciales ni red)."""
 
+    def __init__(self) -> None:
+        self._workspaces = [w.model_copy(deep=True) for w in _WORKSPACES]
+        self._datasets = [
+            Dataset(id=did, name=name, workspace_id=ws)
+            for did, name, ws, _tables in _DATASET_DEFS
+        ]
+        self._tables = [
+            TableInfo(name=t, dataset_id=did)
+            for did, _name, _ws, tables in _DATASET_DEFS
+            for t in tables
+        ]
 
-def seed_datasets() -> list[Dataset]:
-    return [
-        Dataset(id=did, name=name, workspace_id=ws)
-        for did, name, ws, _tables in _DATASET_DEFS
-    ]
+    def list_workspaces(self) -> list[Workspace]:
+        return [w.model_copy(deep=True) for w in self._workspaces]
 
+    def list_datasets(self, workspace_id: str) -> list[Dataset]:
+        return [d.model_copy(deep=True) for d in self._datasets if d.workspace_id == workspace_id]
 
-def seed_tables() -> list[TableInfo]:
-    out: list[TableInfo] = []
-    for did, _name, _ws, tables in _DATASET_DEFS:
-        for t in tables:
-            out.append(TableInfo(name=t, dataset_id=did))
-    return out
+    def list_tables(self, dataset_id: str) -> list[TableInfo]:
+        return [t.model_copy(deep=True) for t in self._tables if t.dataset_id == dataset_id]
 
 
 def _sched(**kwargs) -> Schedule:
-    # Construimos con time="" para que Pydantic convierta el dict `frequency` en su
-    # modelo de unión, y recién ahí derivamos el time canónico (espejo denormalizado).
+    # time="" para que Pydantic convierta el dict `frequency` en su modelo de unión;
+    # recién ahí derivamos el time canónico (espejo denormalizado).
     sch = Schedule(time="", **kwargs)
     sch.time = schedule_time(sch.frequency)
     return sch

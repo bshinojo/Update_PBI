@@ -1,13 +1,9 @@
-// Punto único de selección del backend. Esta es LA línea que cambia al pasar
-// del mock al backend real: el resto de la app importa `api` desde acá.
+// Punto único de acceso al backend. La app importa `api` desde acá y nada más;
+// la implementación concreta (HTTP contra FastAPI) queda encapsulada en http/.
 import type { ScheduleApi } from './client'
 import { HttpScheduleApi } from './http/http-client'
-import { MockScheduleApi } from './mock/mock-client'
 
-const mode = import.meta.env.VITE_API_MODE ?? 'mock'
-
-export const api: ScheduleApi =
-  mode === 'http' ? new HttpScheduleApi() : new MockScheduleApi()
+export const api: ScheduleApi = new HttpScheduleApi()
 
 export { ApiError } from './client'
 export type { ScheduleApi } from './client'

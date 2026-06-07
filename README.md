@@ -1,12 +1,13 @@
-# Programador de refreshes selectivos — Power BI (frontend)
+# Programador de refreshes selectivos — Power BI
 
 Herramienta interna para que los consultores programen **refreshes selectivos** de
 modelos semánticos de Power BI (por tabla, con distinta frecuencia y tipo de refresh)
 **sin escribir código**.
 
-> Por ahora es **solo frontend**. No hay backend real ni autenticación: los datos son
-> inventados y viven detrás de una capa de servicios tipada (`src/api/`) pensada para
-> reemplazarse por un backend FastAPI **sin tocar componentes**.
+> **Frontend** (React + Vite) + **backend FastAPI** (en `backend/`). El frontend habla con
+> el backend vía `/api`; el backend lee y dispara los refreshes contra **Power BI real**
+> (REST API + XMLA) y corre un scheduler que ejecuta los schedules a su hora. Requiere
+> credenciales de un service principal de Azure AD (ver `backend/README.md`).
 
 ## Stack
 
@@ -22,24 +23,26 @@ modelos semánticos de Power BI (por tabla, con distinta frecuencia y tipo de re
 
 ## Desarrollo (Windows)
 
+El frontend necesita el backend corriendo (lee/escribe vía `/api`). En dos terminales:
+
 ```powershell
+# 1) Backend (ver backend/README.md para el .env con credenciales)
+cd backend; ./run.sh            # uvicorn en http://127.0.0.1:8000
+
+# 2) Frontend (en la raíz del repo)
 npm install
 npm run dev
 ```
 
-Vite imprime una URL (por defecto `http://localhost:5173`). El proyecto no usa rutas
-absolutas de Windows ni scripts dependientes del SO, así que los mismos comandos
-funcionan en Linux/Mac.
+Vite imprime una URL (por defecto `http://localhost:5173`) y proxya `/api` → el backend en
+`:8000` (ver `vite.config.ts`). El proyecto no usa rutas absolutas de Windows ni scripts
+dependientes del SO, así que los mismos comandos funcionan en Linux/Mac.
 
 ### Variables de entorno (opcionales)
 
-Copiá `.env.example` a `.env` si querés cambiar algo:
-
-- `VITE_API_MODE=mock` (default) — datos mock persistidos en `localStorage`, con delays
-  simulados de 300–600 ms. `VITE_API_MODE=http` usaría el backend real (todavía no
-  implementado: el cliente HTTP es un stub que compila).
-- `VITE_MOCK_FAIL=1` — hace que el mock falle aleatoriamente, para ver los **estados de
-  error** en cada nivel de navegación.
+`VITE_API_PROXY_TARGET` cambia el destino del proxy `/api` en dev si el backend no está en
+`http://127.0.0.1:8000` (ver `.env.example`). Las credenciales y la config del backend van
+en `backend/.env` (prefijo `PBI_`, ver `backend/README.md`).
 
 ## Build de producción
 
@@ -77,22 +80,19 @@ src/
   api/           Capa de servicios (EL contrato). Componentes solo importan `api` + tipos.
     types.ts     Tipos de dominio (Workspace, Dataset, TableInfo, Schedule, Frequency...).
     client.ts    interface ScheduleApi + ApiError.
-    index.ts     Selector mock|http (la única línea que cambia al ir a FastAPI).
-    mock/        Datos sembrados + store en localStorage + cliente mock con delays.
-    http/        Cliente HTTP real (stub que compila).
+    index.ts     Expone `api` (HttpScheduleApi contra el backend FastAPI).
+    http/        Cliente HTTP (baseUrl '/api'); el backend responde en camelCase, no se mapea nada.
   domain/        Lógica pura: frecuencias, etiquetas en español, assertNever.
   hooks/         useWorkspaces / useDatasets / useTables sobre useRemoteData.
-  state/         SelectionContext (navegación + tablas tildadas).
-  components/    Breadcrumb, WorkspaceList, DatasetList, TablesPanel, ScheduleModal,
-                 ScheduleBadge, StatusIndicator, y primitivos en common/.
+  state/         SelectionContext (workspace/modelo elegidos + tablas tildadas).
+  components/    AppHeader, TopSelect, TablesPanel, KpiStrip, ScheduleForm (rail),
+                 ScheduleBadge, StatusIndicator, WelcomeGuide, y primitivos en common/.
+
+backend/         API FastAPI + scheduler (ver backend/README.md).
 ```
 
 ## Notas
 
-- **Persistencia:** los schedules que crees/edites se guardan en `localStorage`. El botón
-  **"Resetear demo"** (arriba a la derecha) restaura los datos sembrados.
-- **Estado "En curso":** algunas corridas vienen sembradas como *En curso* (spinner). Es
-  un estado de demostración estático del mock; con un backend real progresaría solo.
-- **Swap a FastAPI:** implementá `ScheduleApi` en `src/api/http/http-client.ts` (mapeando
-  el formato del backend si hiciera falta) y poné `VITE_API_MODE=http`. Ningún componente
-  cambia.
+- **Persistencia:** los schedules se guardan en el backend (`backend/schedules.json`).
+- **Estado "En curso":** mientras un refresh está en vuelo se muestra *En curso* (spinner);
+  el scheduler lo pollea y lo resuelve a *Completado* / *Falló* solo.

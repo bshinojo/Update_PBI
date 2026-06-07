@@ -5,16 +5,21 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.datasource import SeedDataSource
-from app.dependencies import get_store
+from app.dependencies import get_datasource, get_store
 from app.main import app
 from app.store import ScheduleStore
+from tests._fixtures import FakeDataSource, seed_schedules
 
 
 @pytest.fixture
 def client(tmp_path):
-    store = ScheduleStore(str(tmp_path / "db.json"), SeedDataSource())
+    ds = FakeDataSource()
+    store = ScheduleStore(str(tmp_path / "db.json"), ds)
+    # Precargamos los schedules de ejemplo (el store ya no siembra: arranca vacío).
+    store._schedules = seed_schedules()
+    store._save()
     app.dependency_overrides[get_store] = lambda: store
+    app.dependency_overrides[get_datasource] = lambda: ds
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
@@ -22,7 +27,7 @@ def client(tmp_path):
 
 def test_health(client):
     r = client.get("/health")
-    assert r.status_code == 200 and r.json()["dataSource"] == "seed"
+    assert r.status_code == 200 and r.json()["status"] == "ok"
 
 
 def test_reads_and_derived_schedule_id(client):
@@ -85,9 +90,11 @@ def test_404_and_422(client):
 
 def test_persistence_survives_reload(tmp_path):
     db = tmp_path / "persist.json"
-    s1 = ScheduleStore(str(db), SeedDataSource())
+    s1 = ScheduleStore(str(db), FakeDataSource())
+    s1._schedules = seed_schedules()
+    s1._save()
     s1.delete("sch-1")
     # Nueva instancia desde el mismo archivo: el borrado sobrevive.
-    s2 = ScheduleStore(str(db), SeedDataSource())
+    s2 = ScheduleStore(str(db), FakeDataSource())
     ids = {s.id for s in s2.list_schedules("ds-ventas-retail")}
     assert "sch-1" not in ids and "sch-2" in ids

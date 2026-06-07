@@ -117,29 +117,54 @@ export function SchedulePanel({
           <span className={styles.eyebrow}>Programación</span>
           <h2 className={styles.heading}>{isEdit ? 'Editar programación' : 'Nueva programación'}</h2>
         </div>
-        {isEdit ? (
-          <button type="button" className={styles.newLink} onClick={onCancelEdit} disabled={busy}>
-            + Nueva
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={`btn btn-primary ${styles.cta}`}
-            onClick={handleSave}
-            disabled={busy || !canCreate}
-            title={canCreate ? undefined : 'Tildá al menos una tabla'}
-          >
-            {busy
-              ? 'Programando…'
-              : `Programar${targetTables.length > 0 ? ` ${targetTables.length}` : ''}`}
-          </button>
-        )}
+        <div className={styles.railActions}>
+          {isEdit ? (
+            <>
+              <button
+                type="button"
+                className={styles.newLink}
+                onClick={onCancelEdit}
+                disabled={busy}
+              >
+                + Nueva
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleDelete}
+                disabled={busy}
+              >
+                Eliminar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={busy}
+              >
+                {busy ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className={`btn btn-primary ${styles.cta}`}
+              onClick={handleSave}
+              disabled={busy || !canCreate}
+              title={canCreate ? undefined : 'Seleccioná al menos una tabla'}
+            >
+              {busy
+                ? 'Programando…'
+                : `Programar${targetTables.length > 0 ? ` ${targetTables.length}` : ''}`}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className={styles.body}>
         {targetTables.length === 0 ? (
           <p className={styles.emptyHint}>
-            Tildá una o más tablas de la izquierda para programarlas.
+            Seleccioná una o más tablas de la izquierda (tocá la fila) para programarlas.
           </p>
         ) : (
           <div className={styles.targets}>
@@ -254,17 +279,6 @@ export function SchedulePanel({
         ) : null}
         {submitError ? <div className={styles.submitError}>{submitError}</div> : null}
       </div>
-
-      {isEdit ? (
-        <div className={styles.footer}>
-          <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={busy}>
-            Eliminar
-          </button>
-          <button type="button" className="btn btn-primary" onClick={handleSave} disabled={busy}>
-            {busy ? 'Guardando…' : 'Guardar cambios'}
-          </button>
-        </div>
-      ) : null}
     </section>
   )
 }

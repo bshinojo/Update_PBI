@@ -1,11 +1,8 @@
 # Cliente de la REST API de Power BI. Autentica con el flujo client-credentials
-# (service principal) y cachea el token hasta poco antes de que expire.
-#
-# IMPORTANTE: hasta no tener credenciales no se pudo probar contra el servicio
-# real. Los endpoints de listado y el enhanced refresh siguen la documentación
-# oficial; verificar `list_tables` cuando haya un dataset real (depende de que el
-# dataset tenga XMLA/ejecución de consultas habilitado). El modo por defecto es
-# "seed", así que esto solo corre cuando PBI_DATA_SOURCE=powerbi.
+# (service principal) y cachea el token hasta poco antes de que expire. Las
+# lecturas (workspaces/datasets/tablas vía XMLA) y el enhanced refresh selectivo
+# están verificados contra un tenant real (ver CLAUDE.md).
+import logging
 import time
 from typing import Any
 
@@ -13,6 +10,8 @@ import httpx
 
 from ..config import Settings
 from ..models import Dataset, TableInfo, Workspace
+
+logger = logging.getLogger("pbi.powerbi")
 
 # Mapeo de nuestro RefreshType al "type" del enhanced refresh de Power BI.
 # Coincide 1:1 con los valores que acepta el servicio.
@@ -37,7 +36,7 @@ class PowerBIClient:
         if missing:
             raise PowerBIError(
                 "Faltan credenciales de Power BI: " + ", ".join(missing) +
-                ". Completalas en el .env o poné PBI_DATA_SOURCE=seed."
+                ". Completalas en backend/.env (ver .env.example)."
             )
         self._s = settings
         self._client = httpx.Client(timeout=timeout)
@@ -133,20 +132,28 @@ class PowerBIClient:
         `group_id` (el workspace del dataset) usa la ruta con grupo, que es la que
         corresponde para datasets que no están en "Mi área de trabajo".
 
-        ⚠️ El enhanced refresh es ASÍNCRONO: el POST devuelve 202 y el refresh sigue
-        corriendo. El id sale del header `Location` (.../refreshes/{id}) o, en su
-        defecto, de `x-ms-request-id`. Verificar estos nombres contra el servicio real."""
+        El enhanced refresh es ASÍNCRONO: el POST devuelve 202 y el refresh sigue
+        corriendo. El id sale del header `Location` (.../refreshes/{id}) —verificado contra
+        el tenant real— o, en su defecto, de `x-ms-request-id`."""
         body = {
             "type": _REFRESH_TYPE_MAP.get(refresh_type, "full"),
             "commitMode": "transactional",
             "objects": [{"table": t} for t in tables],
         }
         prefix = f"/groups/{group_id}" if group_id else ""
-        res = self._send("POST", f"{prefix}/datasets/{dataset_id}/refreshes", json=body)
+        path = f"{prefix}/datasets/{dataset_id}/refreshes"
+        res = self._send("POST", path, json=body)
         location = res.headers.get("Location") or res.headers.get("location")
-        if location:
-            return location.rstrip("/").rsplit("/", 1)[-1]
-        return res.headers.get("x-ms-request-id") or res.headers.get("RequestId")
+        refresh_id = (
+            location.rstrip("/").rsplit("/", 1)[-1]
+            if location
+            else res.headers.get("x-ms-request-id") or res.headers.get("RequestId")
+        )
+        logger.info(
+            "POST %s [%s tablas, %s] -> HTTP %s refreshId=%s",
+            path, len(tables), body["type"], res.status_code, refresh_id,
+        )
+        return refresh_id
 
     def get_refresh_status(
         self,

@@ -7,11 +7,11 @@ from datetime import datetime, timedelta
 import pytest
 
 from app.config import Settings
-from app.datasource import SeedDataSource
 from app.models import CreateScheduleInput, DailyFrequency, HourlyFrequency, LastRun
 from app.nextrun import art_tz
 from app.scheduler import Scheduler
 from app.store import ScheduleStore
+from tests._fixtures import FakeDataSource
 
 ART = art_tz()
 
@@ -41,11 +41,9 @@ class FakeExecutor:
 @pytest.fixture
 def store(tmp_path):
     db = tmp_path / "sched.json"
-    s = ScheduleStore(str(db), SeedDataSource())
-    # Arrancamos sin los schedules sembrados para aislar lo que dispara el scheduler.
-    s._schedules.clear()
-    s._save()
-    return s
+    # Store vacío (sin schedules) para aislar lo que dispara el scheduler; la
+    # FakeDataSource provee las tablas que el store usa para pintar scheduleId.
+    return ScheduleStore(str(db), FakeDataSource())
 
 
 @pytest.fixture

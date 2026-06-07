@@ -12,6 +12,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-3);
 }
 .railHeading {
@@ -49,16 +50,25 @@
 .newLink:hover {
   color: var(--color-gold-strong);
 }
-/* Tablas objetivo: tarjeta sutil DENTRO del cuerpo (ya no una barra aislada). */
+/* Acciones del rail (a la derecha del título): en edición agrupa
+   + Nueva / Eliminar / Guardar cambios; en alta, el CTA Programar. */
+.railActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+/* Tablas objetivo: tarjeta editorial RFDD (borde hairline + sombra navy sutil). */
 .targets {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-accent);
   border-radius: var(--radius-md);
   background: var(--color-selected-bg);
+  box-shadow: var(--shadow-1);
   word-break: break-word;
 }
 .targetsLabel {
@@ -321,16 +331,18 @@
   transform: translateX(18px);
 }
 
-/* Resumen en vivo de la programación (acento gold a la izquierda). */
+/* Resumen en vivo: tarjeta editorial RFDD con regla superior gold (flourish de
+   marca, usado con moderación). Sin barra de acento a la izquierda. */
 .summary {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-gold);
+  border-top: 2px solid var(--color-gold);
   border-radius: var(--radius-md);
-  background: var(--color-bg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-1);
 }
 .summaryLabel {
   font-size: var(--fs-xs);
@@ -360,14 +372,6 @@
   font-size: var(--fs-sm);
 }
 
-.footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-border);
-}
 /* CTA "Programar" en el header del rail: más grande y resaltado. */
 .cta {
   padding: 10px 22px;

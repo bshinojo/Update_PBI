@@ -14,14 +14,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Fuente de datos para LECTURAS (workspaces / datasets / tablas):
-    #   "seed"    -> datos de ejemplo, no requiere credenciales (default).
-    #   "powerbi" -> Power BI REST API real (usa las credenciales de abajo).
-    # Los SCHEDULES siempre se guardan localmente (db_path), en cualquier modo.
-    data_source: str = "seed"
-
     # Credenciales del service principal de Azure AD con acceso a Power BI.
-    # Necesarias solo cuando data_source == "powerbi".
+    # Obligatorias: la herramienta lee y dispara refreshes contra Power BI real.
     tenant_id: str = ""
     client_id: str = ""
     client_secret: str = ""
@@ -38,6 +32,13 @@ class Settings(BaseSettings):
     # Archivo donde se persisten los schedules (relativo al cwd o absoluto).
     db_path: str = "schedules.json"
 
+    # Historial de corridas (audit log, JSON Lines append-only). Una línea por
+    # refresh terminado. Vacío ("") desactiva el historial.
+    runs_log_path: str = "runs.jsonl"
+
+    # Nivel de log de la app (los loggers "pbi.*": scheduler, executor, powerbi).
+    log_level: str = "INFO"
+
     # --- Scheduler (etapa B) ---
     # Si está activo, un worker en segundo plano dispara los schedules a su hora.
     scheduler_enabled: bool = True
@@ -49,13 +50,6 @@ class Settings(BaseSettings):
     # Tope para un refresh "en curso": pasado este tiempo sin terminar, se marca
     # Failed (evita que un refresh colgado quede InProgress para siempre).
     refresh_poll_timeout_min: int = 120
-    # Solo modo seed: si > 0, simula refreshes que tardan N polls en completar (para
-    # ver el "En curso" progresar en la demo). 0 = éxito instantáneo.
-    seed_simulate_refresh_ticks: int = 0
-
-    @property
-    def powerbi_enabled(self) -> bool:
-        return self.data_source.strip().lower() == "powerbi"
 
     @property
     def cors_origin_list(self) -> list[str]:

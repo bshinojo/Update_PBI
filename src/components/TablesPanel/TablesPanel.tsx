@@ -38,7 +38,6 @@ export function TablesPanel({
   const tables = data.status === 'success' ? data.data.tables : []
   const allNames = tables.map((t) => t.name)
   const allChecked = allNames.length > 0 && allNames.every((n) => checked.has(n))
-  const indeterminate = !allChecked && allNames.some((n) => checked.has(n))
 
   // Resumen del modelo para la tira de KPIs (presentacional, derivado del estado).
   const kpis = useMemo<KpiItem[] | null>(() => {
@@ -88,18 +87,18 @@ export function TablesPanel({
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.checkCol}>
-                  <input
-                    type="checkbox"
-                    ref={(el) => {
-                      if (el) el.indeterminate = indeterminate
-                    }}
-                    checked={allChecked}
-                    onChange={() => onSetChecked(allChecked ? [] : allNames)}
-                    aria-label="Seleccionar todas las tablas"
-                  />
+                <th>
+                  <span className={styles.thTabla}>
+                    Tabla
+                    <button
+                      type="button"
+                      className={styles.selectAll}
+                      onClick={() => onSetChecked(allChecked ? [] : allNames)}
+                    >
+                      {allChecked ? 'Quitar selección' : 'Seleccionar todas'}
+                    </button>
+                  </span>
                 </th>
-                <th>Tabla</th>
                 <th>Programación</th>
                 <th className={styles.statusCol}>Último run</th>
               </tr>

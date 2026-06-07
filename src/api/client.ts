@@ -1,6 +1,6 @@
-// EL SEAM. Este es el contrato que hoy implementa el mock y mañana implementará
-// el backend real (FastAPI). Componentes y hooks SOLO importan `api` (de index.ts)
-// y los tipos; nunca tocan mock/ ni http/. Así el swap es una sola línea.
+// EL CONTRATO de la capa de API, implementado por HttpScheduleApi (http/) contra
+// el backend FastAPI. Componentes y hooks SOLO importan `api` (de index.ts) y los
+// tipos; nunca tocan http/ directamente.
 import type {
   CreateScheduleInput,
   Dataset,
