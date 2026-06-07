@@ -176,7 +176,7 @@ un backend real con latencia.
   dispara los schedules a su hora (ART), **pollea** los refreshes asíncronos en vuelo y registra
   `lastRun` (`InProgress`→`Completed/Failed`, con timeout anti-colgados). Lógica de "próxima
   corrida" pura y testeada (`nextrun.py`), executor con protocolo `start`/`poll`, suite `pytest`
-  (28 tests, todo verde sin credenciales). **Falta verificar el refresh real contra Power BI**
+  (29 tests, todo verde sin credenciales). **Falta verificar el refresh real contra Power BI**
   (nombres de header/estado del refresh, ver §6.B); las lecturas ya se verificaron (2026-06-06).
 
 ---
@@ -240,7 +240,10 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
   dispara los schedules vencidos y (2) **pollea los refreshes en vuelo** resolviendo
   `InProgress`→`Completed/Failed`. Lleva un dict de pendientes (`scheduleId→{token,started_at,
   snapshot}`); un schedule con refresh en curso no se re-dispara hasta terminar; si supera
-  `PBI_REFRESH_POLL_TIMEOUT_MIN` se marca `Failed`. Un hilo daemon llama `tick()` cada `PBI_SCHEDULER_TICK_SECONDS`.
+  `PBI_REFRESH_POLL_TIMEOUT_MIN` se marca `Failed`. **Serializa por dataset**: si el dataset ya
+  tiene un refresh en vuelo, difiere el disparo de otro schedule del mismo dataset al próximo tick
+  (Power BI no permite refreshes concurrentes sobre el mismo dataset). Un hilo daemon llama
+  `tick()` cada `PBI_SCHEDULER_TICK_SECONDS`.
 - **`backend/app/executor.py`**: protocolo de dos fases `start(schedule)->token|None` y
   `poll(schedule,token)->RunStatus` (el refresh real es asíncrono). Seed: instantáneo por
   defecto, o simula N polls con `PBI_SEED_SIMULATE_REFRESH_TICKS`. PowerBI:
@@ -251,7 +254,7 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
 - **Tests** (`backend/tests/`, `pip install -r requirements-dev.txt && pytest`): `nextrun` (todas las
   frecuencias y bordes), scheduler con reloj controlado + executor falso (disparo, polling
   InProgress→Completed/Failed, timeout, no re-disparo en vuelo), executor (mapeo de estados +
-  delegación al cliente con cliente falso), y los 8 endpoints. 28 tests, todo verde sin credenciales.
+  delegación al cliente con cliente falso), y los 8 endpoints. 29 tests, todo verde sin credenciales.
 
 > ⚠️ Falta verificar el **refresh real** contra Power BI: de qué header sale el `refreshId`
 > (`Location`/`x-ms-request-id`) y los strings de estado del refresh. Son ajustes de nombres en

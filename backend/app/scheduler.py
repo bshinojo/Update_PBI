@@ -73,14 +73,29 @@ class Scheduler:
     def tick(self, now: datetime | None = None) -> list[str]:
         """Dispara los schedules vencidos a `now` y pollea los refreshes en vuelo.
         Devuelve los ids disparados en este tick. Un schedule con un refresh ya en
-        curso no se vuelve a disparar hasta que ese refresh termine."""
+        curso no se vuelve a disparar hasta que ese refresh termine; y como Power BI
+        no permite dos refreshes concurrentes sobre el MISMO dataset, si el dataset ya
+        tiene uno en vuelo el disparo se DIFIERE al próximo tick (se evita el Failed
+        espurio por colisión)."""
         now = now or self.now()
         fired: list[str] = []
+        # Datasets con un refresh en vuelo (de ticks anteriores).
+        busy_datasets = {p.schedule.dataset_id for p in self._pending.values()}
         for sch in self.due_schedules(now):
             if sch.id in self._pending:
-                continue  # ya hay un refresh en vuelo para este schedule
+                continue  # este schedule ya tiene un refresh en vuelo
+            if sch.dataset_id in busy_datasets:
+                logger.info(
+                    "Schedule %s diferido: el dataset %s ya tiene un refresh en curso",
+                    sch.id, sch.dataset_id,
+                )
+                continue  # otro schedule del mismo dataset corre -> reintenta próximo tick
             self._fire(sch, now)
             fired.append(sch.id)
+            # Si quedó async en vuelo, el dataset queda ocupado también para este tick
+            # (dos schedules del mismo dataset vencidos a la vez no colisionan).
+            if sch.id in self._pending:
+                busy_datasets.add(sch.dataset_id)
         self._poll_pending(now)
         self._gc_anchors()
         return fired

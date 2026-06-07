@@ -185,6 +185,37 @@ def test_poll_timeout_marks_failed(store):
     assert _status(store, sch.id) == "Failed"
 
 
+def test_defers_second_schedule_same_dataset(store, settings):
+    # Dos schedules del MISMO dataset que vencen a la vez: Power BI no permite dos
+    # refreshes concurrentes sobre el mismo dataset, así que el segundo se difiere.
+    a = store.create(
+        CreateScheduleInput(
+            dataset_id="ds-calidad", workspace_id="ws-ops", tables=["Inspecciones"],
+            frequency=DailyFrequency(kind="daily", time="06:00"),
+            refresh_type="full", enabled=True,
+        )
+    ).affected
+    b = store.create(
+        CreateScheduleInput(
+            dataset_id="ds-calidad", workspace_id="ws-ops", tables=["Defectos"],
+            frequency=DailyFrequency(kind="daily", time="06:00"),
+            refresh_type="full", enabled=True,
+        )
+    ).affected
+    ex = FakeExecutor(token="r", poll_results=["InProgress", "Completed"])
+    sched = Scheduler(store, ex, settings)
+    sched.tick(at(5, 0))                  # ancla ambos
+    fired1 = sched.tick(at(6, 30))        # ambos vencen; SOLO uno dispara
+    assert len(fired1) == 1
+    first = fired1[0]
+    second = b.id if first == a.id else a.id
+    # Mientras el primero sigue en vuelo, el segundo queda diferido.
+    assert sched.tick(at(6, 31)) == []   # poll del primero -> Completed; segundo aún diferido
+    # Liberado el dataset, el segundo por fin dispara.
+    assert sched.tick(at(6, 32)) == [second]
+    assert sorted(ex.start_calls) == sorted([a.id, b.id])
+
+
 def test_not_refired_while_pending(store, settings):
     sch = _make_hourly(store, every_hours=1)
     ex = FakeExecutor(token="r1", poll_results=["InProgress"] * 10)  # queda en vuelo

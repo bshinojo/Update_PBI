@@ -115,6 +115,9 @@ habilitados vencieron, los dispara y registra el `lastRun` (`InProgress` → `Co
   vuelo y resuelve `InProgress → Completed/Failed`. Un schedule con un refresh en curso no se
   re-dispara hasta que termine. Si un refresh excede `PBI_REFRESH_POLL_TIMEOUT_MIN` se marca
   `Failed` (anti-colgados).
+- **Serialización por dataset**: Power BI no permite dos refreshes concurrentes sobre el mismo
+  dataset, así que si un dataset ya tiene un refresh en vuelo, el disparo de otro schedule del
+  mismo dataset se **difiere** al próximo tick (en vez de chocar y marcar `Failed`).
 - Como API y scheduler comparten el store en memoria, **correr uvicorn con UN worker**
   (`--workers 1`, default). Apagar el worker: `PBI_SCHEDULER_ENABLED=0`.
 
