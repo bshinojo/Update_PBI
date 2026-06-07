@@ -1,11 +1,7 @@
 # Tests de los 8 endpoints contra el contrato ScheduleApi. Usan un store aislado
-# por test (override de dependencias) y el scheduler apagado.
-import os
-
-# Debe setearse ANTES de importar app.main (get_settings se cachea al importar).
-os.environ.setdefault("PBI_SCHEDULER_ENABLED", "0")
-os.environ.setdefault("PBI_DB_PATH", "/tmp/pbi-test-singleton.json")
-
+# por test (override de dependencias) y el scheduler apagado. El modo seed, el
+# scheduler off y el db_path temporal los fija tests/conftest.py antes de importar
+# app (get_settings se cachea), para correr hermético aunque haya un .env local.
 import pytest
 from fastapi.testclient import TestClient
 
