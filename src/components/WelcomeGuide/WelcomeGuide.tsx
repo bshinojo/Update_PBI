@@ -6,7 +6,7 @@ import styles from './WelcomeGuide.module.css'
 const STEPS: { t: string; d: string }[] = [
   {
     t: 'Elegí un workspace y un modelo',
-    d: 'Usá los selectores de la barra de arriba para ubicar el modelo semántico que querés mantener al día.',
+    d: 'Usá los selectores de la izquierda para ubicar el modelo semántico que querés mantener al día.',
   },
   {
     t: 'Marcá qué actualizar',
@@ -29,7 +29,7 @@ export function WelcomeGuide() {
         <p className={styles.eyebrow}>Guía rápida</p>
         <h1 className={styles.title}>Programá actualizaciones de Power BI sin escribir código</h1>
         <p className={styles.lead}>
-          Estás en <em>--GENERAL--</em>. Elegí un workspace en el selector de arriba para empezar.
+          Estás en <em>--GENERAL--</em>. Elegí un workspace en el selector de la izquierda para empezar.
         </p>
 
         <ol className={styles.steps}>

@@ -6,38 +6,8 @@
   border-left: 1px solid var(--color-border);
   background: var(--color-surface);
 }
-.railHeader {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-.railHeading {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-.eyebrow {
-  font-family: var(--font);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--color-gold-strong);
-}
-.heading {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--fs-2xl);
-  font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: -0.01em;
-  color: var(--color-text);
-}
+/* El encabezado del rail lo provee <ColumnHeader> (común a las 3 columnas). Acá
+   solo quedan los estilos de los botones que van en su slot de acciones. */
 .newLink {
   border: none;
   background: none;
@@ -49,15 +19,6 @@
 }
 .newLink:hover {
   color: var(--color-gold-strong);
-}
-/* Acciones del rail (a la derecha del título): en edición agrupa
-   + Nueva / Eliminar / Guardar cambios; en alta, el CTA Programar. */
-.railActions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: var(--space-2);
 }
 /* Tablas objetivo: tarjeta editorial RFDD (borde hairline + sombra navy sutil). */
 .targets {

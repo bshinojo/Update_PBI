@@ -88,11 +88,14 @@ src/
                   TopSelect (selectores del header), TablesPanel(+TableRow),
                   KpiStrip (tira de KPI tiles del modelo: tablas/programadas/en pausa/sin programar),
                   ScheduleForm/ (SchedulePanel = rail lateral + FrequencyFields + useScheduleForm),
-                  ScheduleBadge, StatusIndicator, y primitivos en common/ (Icon, Skeleton, EmptyState)
-  App.tsx         Layout one-pager master-detail: AppHeader (marca + cuenta) + barra de
-                  selectores (Workspace/Modelo) + grid [tabla (lista, flexible) | rail de
-                  programación (detalle, ancho fijo `clamp(400px,34vw,520px)`)]. Auto-selecciona
-                  el primer workspace/modelo.
+                  ScheduleBadge, StatusIndicator, y primitivos en common/ (Icon, Skeleton,
+                  EmptyState, ColumnHeader = banda de título común a las 3 columnas)
+  App.tsx         Layout one-pager de 3 columnas (`25% 37.5% 37.5%`): AppHeader (marca +
+                  cuenta) + grid [sidebar | tabla | rail]: COL 1 sidebar (selector Workspace
+                  arriba, Modelo debajo, y las KPIs del modelo apiladas verticalmente); COL 2 la
+                  tabla (lista); COL 3 el rail de programación (detalle). El cálculo de KPIs vive
+                  acá (se pasa a KpiStrip). Auto-selecciona el primer
+                  workspace/modelo.
 ```
 
 **Regla de oro del seam:** ningún archivo fuera de `src/api/` debe importar de `api/http/`.
@@ -111,11 +114,17 @@ un backend real con latencia.
 - **"Programar"** crea **UN** schedule que agrupa todas las tablas tildadas
   (`Schedule.tables: string[]`). Si una tabla ya tenía schedule, se **reasigna** (se quita del
   anterior; si el anterior queda vacío, se elimina) y el rail **avisa** qué tablas se mueven.
-- **UI one-pager** (decidido con el usuario): sin drill-down ni modal. Workspace y Modelo son
-  dos `select` en una barra de selectores; la tabla ocupa el ancho; el formulario de programación
-  vive en un **rail fijo a la derecha de ancho cómodo** (master-detail; tabla flexible + rail
-  `clamp(400px,34vw,520px)`; crear
-  sobre las tildadas / editar al clickear un badge). Tocar la selección de tablas sale del modo edición.
+- **UI one-pager de 3 columnas** (rediseño pedido por el usuario, reemplaza el master-detail de
+  2 columnas): sin drill-down ni modal. **COL 1 (sidebar `App.module.css .sidebar`)**: selector
+  Workspace arriba, Modelo debajo, y las **4 KPIs del modelo apiladas** verticalmente (`KpiStrip`
+  transpuesto). **COL 2**: la tabla (lista). **COL 3**: el rail de programación (crear sobre las
+  seleccionadas / editar al clickear un badge). Anchos **`25% 37.5% 37.5%`** (`App.module.css
+  .layout`). Tocar la selección de tablas sale del modo edición.
+- **Encabezado por columna** (pedido del usuario, "para que se entienda qué hace cada columna"):
+  las 3 columnas arrancan con un `<ColumnHeader>` (común, en `common/`) de **misma altura**
+  (eyebrow gold en versalitas + título serif): **MODELO** "Workspace y modelo" · **TABLAS**
+  "Tablas del modelo" · **PROGRAMACIÓN** "Nueva/Editar programación". El del rail recibe los
+  botones (Programar / + Nueva·Eliminar·Guardar) en su slot `actions`.
 - **Diseño RFDD** (pedido por el usuario): se adoptó el design system de la firma
   (`rfdd-design-system/`) en reemplazo de la estética flat. Detalles de tokens/tipos en §2.
 - **Barra superior de marca (mock)**: `AppHeader` navy con logo RFDD, título serif
@@ -131,10 +140,9 @@ un backend real con latencia.
 - **Acciones del rail** (cambio pedido por el usuario): en alta, el CTA **"Programar N"** vive en
   el header (a la derecha del título). En **edición**, los botones **Eliminar / Guardar cambios**
   van TAMBIÉN en el header, al lado de **"+ Nueva"** (`.railActions`); ya no hay footer.
-- **Panel izquierdo sin título**: se quitó el encabezado "Modelo / Tablas del modelo"; el
-  `KpiStrip` encabeza directamente. Los **selectores Workspace/Modelo** (`TopSelect`) van
-  destacados (grandes, valor en negrita navy, borde 1.5px) para que no pasen desapercibidos
-  bajo la barra navy.
+- **Sidebar (col 1)**: los **selectores Workspace/Modelo** (`TopSelect`, full-width, label arriba)
+  y el `KpiStrip` (KPIs **apiladas verticalmente**: tile compacto = label izq, número der, nota
+  abajo) viven acá, no en una barra superior. La tabla (col 2) va sin encabezado propio.
 - **Selección de tablas por fila** (cambio pedido por el usuario): **no hay checkbox**; se
   selecciona/deselecciona **tocando cualquier parte de la fila** (`TableRow` → `onClick`), y la
   selección se ve por el **resaltado** (tinte sky). La fila es focusable (Tab + Enter/Espacio) con
@@ -167,8 +175,8 @@ un backend real con latencia.
 
 ## 5. Lo que YA está hecho (✅)
 
-- Frontend completo (layout **one-pager**: barra de marca RFDD + selectores Workspace/Modelo +
-  tabla (lista) + rail de programación de **ancho fijo** a la derecha), badges de programación,
+- Frontend completo (layout **one-pager de 3 columnas**: barra de marca RFDD + grid
+  [sidebar con selectores + KPIs | tabla (lista) | rail de programación]), badges de programación,
   estados de último run (✓/✗/spinner/—), crear/editar/eliminar en el rail + toggle habilitar,
   "Programar" con reasignación, skeletons de carga, empty states.
 - **Diseño RFDD aplicado a fondo** (pedido explícito de que "se note más"): tema en

@@ -2,9 +2,9 @@ import { useMemo } from 'react'
 import type { RemoteData } from '../../api/remote-data'
 import type { Schedule } from '../../api/types'
 import type { DatasetTablesView } from '../../hooks/useTables'
+import { ColumnHeader } from '../common/ColumnHeader'
 import { EmptyState } from '../common/EmptyState'
 import { Skeleton } from '../common/Skeleton'
-import { KpiStrip, type KpiItem } from '../KpiStrip/KpiStrip'
 import { TableRow } from './TableRow'
 import styles from './TablesPanel.module.css'
 
@@ -39,37 +39,9 @@ export function TablesPanel({
   const allNames = tables.map((t) => t.name)
   const allChecked = allNames.length > 0 && allNames.every((n) => checked.has(n))
 
-  // Resumen del modelo para la tira de KPIs (presentacional, derivado del estado).
-  const kpis = useMemo<KpiItem[] | null>(() => {
-    if (tables.length === 0) return null
-    let scheduled = 0
-    let paused = 0
-    let unscheduled = 0
-    for (const t of tables) {
-      if (!t.scheduleId) {
-        unscheduled++
-        continue
-      }
-      const s = scheduleById.get(t.scheduleId)
-      if (s && s.enabled === false) paused++
-      else scheduled++
-    }
-    return [
-      { label: 'Tablas', value: tables.length, note: 'en el modelo' },
-      { label: 'Programadas', value: scheduled, note: 'activas', noteTone: 'pos' },
-      {
-        label: 'En pausa',
-        value: paused,
-        note: 'pausadas',
-        noteTone: paused > 0 ? 'warn' : 'muted',
-      },
-      { label: 'Sin programar', value: unscheduled, note: 'sin schedule', noteTone: 'muted' },
-    ]
-  }, [tables, scheduleById])
-
   return (
     <section className={styles.panel}>
-      {kpis ? <KpiStrip items={kpis} /> : null}
+      <ColumnHeader eyebrow="Tablas" title="Tablas del modelo" />
 
       <div className={styles.body}>
         {data.status === 'idle' ? (

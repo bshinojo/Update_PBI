@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { isSuccess } from './api/remote-data'
 import type { Schedule, ScheduleMutationResult } from './api/types'
 import { AppHeader } from './components/AppHeader/AppHeader'
+import { ColumnHeader } from './components/common/ColumnHeader'
+import { KpiStrip, type KpiItem } from './components/KpiStrip/KpiStrip'
 import { SchedulePanel } from './components/ScheduleForm/SchedulePanel'
 import { TablesPanel } from './components/TablesPanel/TablesPanel'
 import { TopSelect } from './components/TopSelect/TopSelect'
@@ -84,6 +86,32 @@ function Shell() {
     return set
   }, [tables.state])
 
+  // Resumen del modelo para las KPIs del sidebar (presentacional, derivado del estado).
+  const kpis = useMemo<KpiItem[] | null>(() => {
+    if (!isSuccess(tables.state)) return null
+    const view = tables.state.data
+    if (view.tables.length === 0) return null
+    const scheduleById = new Map(view.schedules.map((s) => [s.id, s]))
+    let scheduled = 0
+    let paused = 0
+    let unscheduled = 0
+    for (const t of view.tables) {
+      if (!t.scheduleId) {
+        unscheduled++
+        continue
+      }
+      const s = scheduleById.get(t.scheduleId)
+      if (s && s.enabled === false) paused++
+      else scheduled++
+    }
+    return [
+      { label: 'Tablas', value: view.tables.length, note: 'en el modelo' },
+      { label: 'Programadas', value: scheduled, note: 'activas', noteTone: 'pos' },
+      { label: 'En pausa', value: paused, note: 'pausadas', noteTone: paused > 0 ? 'warn' : 'muted' },
+      { label: 'Sin programar', value: unscheduled, note: 'sin schedule', noteTone: 'muted' },
+    ]
+  }, [tables.state])
+
   const checkedTableNames = [...selection.checkedTables]
   const reassignTables = editing
     ? []
@@ -117,52 +145,61 @@ function Shell() {
     <div className={styles.app}>
       <AppHeader />
 
-      <header className={styles.topbar}>
-        <div className={styles.selectors}>
-          <TopSelect
-            label="Workspace"
-            value={selection.selectedWorkspaceId}
-            options={workspaceOptions}
-            specialIds={[GENERAL_ID]}
-            onChange={selection.selectWorkspace}
-          />
-          <TopSelect
-            label="Modelo"
-            value={selection.selectedDatasetId}
-            options={datasetOptions}
-            loading={!isGeneral && !!selection.selectedWorkspaceId && !isSuccess(datasets.state)}
-            disabled={isGeneral || !selection.selectedWorkspaceId}
-            onChange={selection.selectDataset}
-          />
-        </div>
-      </header>
+      <main className={styles.layout}>
+        <aside className={styles.sidebar}>
+          <ColumnHeader eyebrow="Modelo" title="Workspace y modelo" />
+          <div className={styles.sidebarBody}>
+            <TopSelect
+              label="Workspace"
+              value={selection.selectedWorkspaceId}
+              options={workspaceOptions}
+              specialIds={[GENERAL_ID]}
+              onChange={selection.selectWorkspace}
+            />
+            <TopSelect
+              label="Modelo"
+              value={selection.selectedDatasetId}
+              options={datasetOptions}
+              loading={!isGeneral && !!selection.selectedWorkspaceId && !isSuccess(datasets.state)}
+              disabled={isGeneral || !selection.selectedWorkspaceId}
+              onChange={selection.selectDataset}
+            />
+            {kpis ? (
+              <div className={styles.sidebarKpis}>
+                <span className={styles.sidebarKpisLabel}>Resumen del modelo</span>
+                <KpiStrip items={kpis} />
+              </div>
+            ) : null}
+          </div>
+        </aside>
 
-      {isGeneral ? (
-        <main className={styles.layoutGeneral}>
-          <WelcomeGuide />
-        </main>
-      ) : (
-        <main className={styles.layout}>
-          <TablesPanel
-            data={tables.state}
-            checked={selection.checkedTables}
-            editingTables={editing ? editing.tables : []}
-            onToggle={handleToggle}
-            onSetChecked={handleSetChecked}
-            onEditBadge={handleEditBadge}
-          />
-          <SchedulePanel
-            key={editing ? `edit-${editing.id}` : 'new'}
-            editing={editing}
-            workspaceId={selection.selectedWorkspaceId}
-            datasetId={selection.selectedDatasetId}
-            checkedTableNames={checkedTableNames}
-            reassignTables={reassignTables}
-            onSaved={handleSaved}
-            onCancelEdit={() => setEditing(null)}
-          />
-        </main>
-      )}
+        {isGeneral ? (
+          <section className={styles.welcomeArea}>
+            <WelcomeGuide />
+          </section>
+        ) : (
+          <>
+            <TablesPanel
+              data={tables.state}
+              checked={selection.checkedTables}
+              editingTables={editing ? editing.tables : []}
+              onToggle={handleToggle}
+              onSetChecked={handleSetChecked}
+              onEditBadge={handleEditBadge}
+            />
+            <SchedulePanel
+              key={editing ? `edit-${editing.id}` : 'new'}
+              editing={editing}
+              workspaceId={selection.selectedWorkspaceId}
+              datasetId={selection.selectedDatasetId}
+              checkedTableNames={checkedTableNames}
+              reassignTables={reassignTables}
+              onSaved={handleSaved}
+              onCancelEdit={() => setEditing(null)}
+            />
+          </>
+        )}
+      </main>
     </div>
   )
 }

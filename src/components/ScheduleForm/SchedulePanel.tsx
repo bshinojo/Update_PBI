@@ -12,6 +12,7 @@ import {
   TIMEZONE_LABEL,
 } from '../../domain/labels'
 import { formatFrequency } from '../../domain/frequency'
+import { ColumnHeader } from '../common/ColumnHeader'
 import { FrequencyFields } from './FrequencyFields'
 import { useScheduleForm } from './useScheduleForm'
 import styles from './ScheduleForm.module.css'
@@ -112,13 +113,11 @@ export function SchedulePanel({
 
   return (
     <section className={styles.rail} aria-label="Programación">
-      <div className={styles.railHeader}>
-        <div className={styles.railHeading}>
-          <span className={styles.eyebrow}>Programación</span>
-          <h2 className={styles.heading}>{isEdit ? 'Editar programación' : 'Nueva programación'}</h2>
-        </div>
-        <div className={styles.railActions}>
-          {isEdit ? (
+      <ColumnHeader
+        eyebrow="Programación"
+        title={isEdit ? 'Editar programación' : 'Nueva programación'}
+        actions={
+          isEdit ? (
             <>
               <button
                 type="button"
@@ -157,9 +156,9 @@ export function SchedulePanel({
                 ? 'Programando…'
                 : `Programar${targetTables.length > 0 ? ` ${targetTables.length}` : ''}`}
             </button>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       <div className={styles.body}>
         {targetTables.length === 0 ? (
