@@ -30,7 +30,7 @@ export function hourlyIntervalMinutes(frequency: HourlyFrequency): number {
 }
 
 /** "Cada 30 min" / "Cada hora" / "Cada 4 hs" según el intervalo en minutos. */
-export function formatInterval(minutes: number): string {
+function formatInterval(minutes: number): string {
   if (minutes < 60) return `Cada ${minutes} min`
   if (minutes === 60) return 'Cada hora'
   if (minutes % 60 === 0) return `Cada ${minutes / 60} hs`
@@ -41,7 +41,7 @@ export function formatInterval(minutes: number): string {
 export const MIN_DAY_OF_MONTH = 1
 export const MAX_DAY_OF_MONTH = 28
 
-export function isLastDayOfMonth(dayOfMonth: number): boolean {
+function isLastDayOfMonth(dayOfMonth: number): boolean {
   return dayOfMonth === LAST_DAY
 }
 
@@ -102,7 +102,7 @@ export function formatFrequency(frequency: Frequency): string {
  * Abrevia una lista de días JS en orden Lunes-primero, compactando rangos
  * consecutivos de 3+ días: [1,2,3,4,5] -> "Lun–Vie"; [1,3,5] -> "Lun, Mié, Vie".
  */
-export function formatWeekdays(daysOfWeek: number[]): string {
+function formatWeekdays(daysOfWeek: number[]): string {
   if (daysOfWeek.length === 0) return ''
   if (daysOfWeek.length === 7) return 'todos los días'
   const order = WEEKDAYS_ES.map((d) => d.value)

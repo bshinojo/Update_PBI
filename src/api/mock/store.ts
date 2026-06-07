@@ -178,9 +178,3 @@ export function deleteSchedule(id: string): ScheduleMutationResult {
   persist()
   return buildResult(datasetId, null)
 }
-
-/** Restaura los datos sembrados (botón "Resetear demo"). */
-export function reset(): void {
-  db = createSeedDb()
-  persist()
-}

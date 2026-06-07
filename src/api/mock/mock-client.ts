@@ -53,9 +53,4 @@ export class MockScheduleApi implements ScheduleApi {
     maybeFail('eliminar el schedule')
     return store.deleteSchedule(id)
   }
-
-  async resetDemo() {
-    await randomDelay(100, 200)
-    store.reset()
-  }
 }

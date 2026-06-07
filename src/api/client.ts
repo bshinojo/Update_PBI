@@ -21,9 +21,6 @@ export interface ScheduleApi {
   updateSchedule(id: string, patch: UpdateScheduleInput): Promise<ScheduleMutationResult>
   setScheduleEnabled(id: string, enabled: boolean): Promise<ScheduleMutationResult>
   deleteSchedule(id: string): Promise<ScheduleMutationResult>
-
-  /** Solo mock: restaura los datos sembrados (botón "Resetear demo"). Opcional. */
-  resetDemo?(): Promise<void>
 }
 
 /** Error normalizado de la capa de API (el `status` imita un código HTTP). */
