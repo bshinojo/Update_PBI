@@ -176,7 +176,7 @@ un backend real con latencia.
   dispara los schedules a su hora (ART), **pollea** los refreshes asíncronos en vuelo y registra
   `lastRun` (`InProgress`→`Completed/Failed`, con timeout anti-colgados). Lógica de "próxima
   corrida" pura y testeada (`nextrun.py`), executor con protocolo `start`/`poll`, suite `pytest`
-  (29 tests, todo verde sin credenciales). **Falta verificar el refresh real contra Power BI**
+  (35 tests, todo verde sin credenciales). **Falta verificar el refresh real contra Power BI**
   (nombres de header/estado del refresh, ver §6.B); las lecturas ya se verificaron (2026-06-06).
 
 ---
@@ -254,7 +254,7 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
 - **Tests** (`backend/tests/`, `pip install -r requirements-dev.txt && pytest`): `nextrun` (todas las
   frecuencias y bordes), scheduler con reloj controlado + executor falso (disparo, polling
   InProgress→Completed/Failed, timeout, no re-disparo en vuelo), executor (mapeo de estados +
-  delegación al cliente con cliente falso), y los 8 endpoints. 29 tests, todo verde sin credenciales.
+  delegación al cliente con cliente falso), y los 8 endpoints. 35 tests, todo verde sin credenciales.
 
 > ⚠️ Falta verificar el **refresh real** contra Power BI: de qué header sale el `refreshId`
 > (`Location`/`x-ms-request-id`) y los strings de estado del refresh. Son ajustes de nombres en

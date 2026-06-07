@@ -101,8 +101,13 @@ Un worker en segundo plano (`app/scheduler.py`) corre **dentro del mismo proceso
 habilitados vencieron, los dispara y registra el `lastRun` (`InProgress` → `Completed`/`Failed`).
 
 - **Cuándo vence cada frecuencia** lo calcula `app/nextrun.py` (lógica pura, en ART/UTC-3):
-  diario, semanal (días JS), mensual (incluye "último día"), y horario (cada N horas ancladas
-  a la medianoche).
+  - **Diario**: a una hora fija; opcionalmente acotado a ciertos días (`daysOfWeek`, JS 0=Dom..6=Sáb;
+    ausente o lista vacía = todos los días).
+  - **Semanal**: en los días elegidos (`daysOfWeek`, requerido) a una hora fija.
+  - **Mensual**: un día del mes (1..28) o el último día (`dayOfMonth = -1`), a una hora fija.
+  - **Horario**: cada N (intervalo por `everyMinutes` para sub-hora —15/20/30— o `everyHours`,
+    anclado a la medianoche), opcionalmente dentro de una **franja** `[startHour, endHour]` (0..23)
+    y/o restringido a ciertos `daysOfWeek`. Sin franja = todo el día (00..23); sin días = todos.
 - **Quién ejecuta el refresh** lo decide `app/executor.py`, con un protocolo de dos fases
   (`start` / `poll`) porque el refresh real es **asíncrono**:
   - `start(schedule)` dispara y devuelve un token para pollear (o `None` si el resultado ya es
