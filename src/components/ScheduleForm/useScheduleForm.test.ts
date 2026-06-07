@@ -17,7 +17,6 @@ function base(over: Partial<FormState> = {}): FormState {
     weeklyTime: '06:00',
     monthlyDay: 1,
     monthlyTime: '06:00',
-    refreshType: 'full',
     enabled: true,
     ...over,
   }

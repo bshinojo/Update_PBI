@@ -131,12 +131,16 @@ un backend real con latencia.
   **"Programador de Actualizaciones"** (sin subtítulo) y una **cuenta de ejemplo** (avatar con
   iniciales) + botón **"Salir"**. **Solo visual**: no hay auth/sesión.
 - **Formulario de programación rediseñado** (pedido del usuario, "más vistoso y moderno"):
-  segmented de frecuencia full-width (pill navy), tipo de refresh como **option-cards compactas
-  de una línea** (la primera, Completo, marcada `(recomendado)` en gold), "Habilitado" como
-  **toggle switch**, **tarjeta de Resumen en vivo** y el texto de tablas objetivo **integrado en
-  el cuerpo** (tarjeta sutil / hint). **Cards estilo RFDD** (pedido del usuario, reemplazan la
-  barra de acento a la izquierda "estilo Claude"): borde hairline + sombra navy sutil; el Resumen
-  lleva **regla superior gold** (`border-top`) como flourish de marca.
+  segmented de frecuencia full-width (pill navy), "Habilitado" como **toggle switch**, **tarjeta de
+  Resumen en vivo** y el texto de tablas objetivo **integrado en el cuerpo** (tarjeta sutil / hint).
+  **Cards estilo RFDD** (pedido del usuario, reemplazan la barra de acento a la izquierda "estilo
+  Claude"): borde hairline + sombra navy sutil; el Resumen lleva **regla superior gold**
+  (`border-top`) como flourish de marca.
+- **Tipo de refresh NO es elegible** (decisión del usuario, para evitar el footgun de `dataOnly`/
+  `calculate`): **siempre `full`** (Completo = datos + recálculo). El rail ya no muestra un selector,
+  solo un texto que explica el modo; `useScheduleForm` no guarda `refreshType` y `SchedulePanel`
+  lo envía como literal `'full'` en el submit. (Los valores `dataOnly`/`calculate` siguen en el
+  tipo `RefreshType` y los acepta el backend, pero la UI no los ofrece.)
 - **Acciones del rail** (cambio pedido por el usuario): en alta, el CTA **"Programar N"** vive en
   el header (a la derecha del título). En **edición**, los botones **Eliminar / Guardar cambios**
   van TAMBIÉN en el header, al lado de **"+ Nueva"** (`.railActions`); ya no hay footer.
@@ -169,7 +173,8 @@ un backend real con latencia.
 - **Persistencia** de los schedules en el backend (`backend/schedules.json`, escritura atómica).
 - **Zona horaria** fija, display-only: `ART (UTC-3)` (no se guarda por schedule). La semana se
   muestra **empezando por Lunes**.
-- **Tipo de refresh** default = `full` (Completo). Ver tabla en sección 7.
+- **Tipo de refresh**: **siempre `full` (Completo)**, no elegible desde la UI (ver decisión arriba).
+  Ref. de los tres tipos en sección 7.
 
 ---
 

@@ -188,52 +188,6 @@
   color: var(--color-muted);
 }
 
-/* Tipo de refresh como option-cards seleccionables. */
-.cards {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.card {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-standard),
-    border-color var(--dur-fast) var(--ease-standard),
-    box-shadow var(--dur-fast) var(--ease-standard);
-}
-.card:hover {
-  border-color: var(--color-border-strong);
-}
-.card input {
-  accent-color: var(--color-accent);
-  flex: none;
-}
-.cardActive {
-  border-color: var(--color-accent);
-  background: var(--color-selected-bg);
-}
-.cardLabel {
-  font-size: var(--fs-md);
-  font-weight: 600;
-  color: var(--color-text);
-}
-.recommended {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--color-gold-strong);
-}
-.cardHint {
-  font-size: var(--fs-xs);
-  color: var(--color-muted);
-}
-
 /* "Habilitado" como toggle switch dentro de una tarjeta. */
 .toggleRow {
   display: flex;

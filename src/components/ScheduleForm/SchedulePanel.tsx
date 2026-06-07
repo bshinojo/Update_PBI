@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { api, ApiError } from '../../api'
 import type {
   FrequencyKind,
-  RefreshType,
   Schedule,
   ScheduleMutationResult,
 } from '../../api/types'
@@ -37,8 +36,6 @@ const KINDS: Array<{ kind: FrequencyKind; label: string }> = [
   { kind: 'weekly', label: 'Semanal' },
   { kind: 'monthly', label: 'Mensual' },
 ]
-
-const REFRESH_TYPES: RefreshType[] = ['full', 'dataOnly', 'calculate']
 
 export function SchedulePanel({
   editing,
@@ -81,12 +78,12 @@ export function SchedulePanel({
               workspaceId: workspaceId!,
               tables: checkedTableNames,
               frequency: result.frequency,
-              refreshType: state.refreshType,
+              refreshType: 'full',
               enabled: state.enabled,
             })
           : await api.updateSchedule(editing.id, {
               frequency: result.frequency,
-              refreshType: state.refreshType,
+              refreshType: 'full',
               enabled: state.enabled,
             })
       onSaved(mutation)
@@ -217,28 +214,9 @@ export function SchedulePanel({
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Tipo de refresh</span>
-          <div className={styles.cards}>
-            {REFRESH_TYPES.map((rt) => (
-              <label
-                key={rt}
-                className={state.refreshType === rt ? `${styles.card} ${styles.cardActive}` : styles.card}
-              >
-                <input
-                  type="radio"
-                  name="refreshType"
-                  checked={state.refreshType === rt}
-                  onChange={() => patch({ refreshType: rt })}
-                />
-                <span className={styles.cardLabel}>
-                  {REFRESH_TYPE_ES[rt]}
-                  {rt === 'full' ? (
-                    <span className={styles.recommended}> (recomendado)</span>
-                  ) : null}
-                </span>
-                <span className={styles.cardHint}>{REFRESH_TYPE_HINT_ES[rt]}</span>
-              </label>
-            ))}
-          </div>
+          <p className={styles.fieldHint}>
+            <strong>{REFRESH_TYPE_ES.full}</strong> — {REFRESH_TYPE_HINT_ES.full}
+          </p>
         </div>
 
         <label className={styles.toggleRow}>
@@ -261,7 +239,7 @@ export function SchedulePanel({
           <div className={styles.summary}>
             <span className={styles.summaryLabel}>Resumen</span>
             <span className={styles.summaryText}>
-              {previewText} · {REFRESH_TYPE_ES[state.refreshType]}
+              {previewText} · {REFRESH_TYPE_ES.full}
             </span>
             <span className={styles.summaryMeta}>
               {TIMEZONE_LABEL} · {state.enabled ? 'Habilitada' : 'En pausa'}

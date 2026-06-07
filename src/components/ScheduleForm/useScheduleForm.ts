@@ -4,7 +4,6 @@ import type {
   Frequency,
   FrequencyKind,
   HourlyFrequency,
-  RefreshType,
   Schedule,
 } from '../../api/types'
 import { assertNever } from '../../domain/assert-never'
@@ -36,7 +35,8 @@ export interface FormState {
   // Mensual: día del mes + horario.
   monthlyDay: number // 1..28 o LAST_DAY
   monthlyTime: string
-  refreshType: RefreshType
+  // El tipo de refresh ya no es elegible: siempre "full" (datos + recálculo). Se
+  // envía como literal en el submit; no vive en el estado del formulario.
   enabled: boolean
 }
 
@@ -59,7 +59,6 @@ function initFormState(schedule?: Schedule): FormState {
     weeklyTime: '06:00',
     monthlyDay: 1,
     monthlyTime: '06:00',
-    refreshType: 'full',
     enabled: true,
   }
   if (!schedule) return base
@@ -67,7 +66,6 @@ function initFormState(schedule?: Schedule): FormState {
   const state: FormState = {
     ...base,
     kind: schedule.frequency.kind,
-    refreshType: schedule.refreshType,
     enabled: schedule.enabled,
   }
   const f = schedule.frequency
