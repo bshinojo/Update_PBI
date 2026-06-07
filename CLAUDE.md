@@ -166,6 +166,9 @@ un backend real con latencia.
   delays 300–600ms, fallos opcionales con `VITE_MOCK_FAIL=1`.
 - `npm run typecheck` y `npm run build` limpios. Build estático servible por nginx
   (`nginx.example.conf` incluido). Verificado en navegador real (drill-down, modal, badges).
+- **Tests unitarios del front (Vitest, `npm run test`): 19, todo verde.** Cubren la lógica pura:
+  `domain/frequency.ts` (`formatFrequency`, `scheduleTime`, `hourlyIntervalMinutes`, `formatHour`)
+  y la validación `ScheduleForm/useScheduleForm.buildFrequency` (todas las frecuencias + bordes).
 - **Backend FastAPI (etapa A, ver §6.A): implementado en `backend/`.** Los 8 endpoints del
   contrato, JSON camelCase idéntico a `types.ts` (sin mapeo en `http-client.ts`), persistencia
   en archivo JSON, reasignación + invariante portados de `store.ts`, credenciales de Power BI
@@ -286,6 +289,7 @@ npm run dev        # http://localhost:5173
 npm run build      # -> dist/ estático
 npm run preview    # sirve dist/ para verificar
 npm run typecheck  # tsc --noEmit (incluye chequeo de casing cross-platform)
+npm run test       # vitest run (tests unitarios de la lógica pura del front)
 ```
 
 Variables (ver `.env.example`): `VITE_API_MODE=mock|http`, `VITE_MOCK_FAIL=1` (forzar errores).
