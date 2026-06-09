@@ -22,7 +22,17 @@ export class HttpScheduleApi implements ScheduleApi {
       ...init,
     })
     if (!res.ok) {
-      throw new ApiError(`Error ${res.status} al llamar a ${path}`, res.status)
+      // El backend manda un mensaje útil en `detail` (p. ej. modelos con RLS cuyas
+      // tablas no se pueden leer). Lo usamos como mensaje de error; si no hay, caemos
+      // a un texto genérico con el status.
+      let detail: string | undefined
+      try {
+        const body = (await res.json()) as { detail?: unknown }
+        if (typeof body?.detail === 'string') detail = body.detail
+      } catch {
+        // respuesta sin cuerpo JSON: usamos el genérico
+      }
+      throw new ApiError(detail ?? `Error ${res.status} al llamar a ${path}`, res.status)
     }
     return (await res.json()) as T
   }

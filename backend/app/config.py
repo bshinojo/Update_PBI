@@ -51,6 +51,18 @@ class Settings(BaseSettings):
     # Failed (evita que un refresh colgado quede InProgress para siempre).
     refresh_poll_timeout_min: int = 120
 
+    # --- Scanner API (fallback para listar tablas de modelos con RLS) ---
+    # Los modelos con seguridad a nivel de fila (RLS) rechazan las consultas DAX del
+    # service principal (401), así que no se pueden listar sus tablas vía executeQueries.
+    # Como fallback usamos la Scanner API (admin metadata), que lee el esquema sin
+    # ejecutar DAX. Requiere que el tenant permita al SP usar las read-only admin APIs.
+    scanner_enabled: bool = True
+    # El resultado del scan (mapa dataset -> tablas) se cachea estos minutos para no
+    # re-escanear en cada lectura (el scan es asíncrono y abarca todos los workspaces).
+    scanner_cache_ttl_min: int = 10
+    # Tope de espera (segundos) para que termine un scan antes de rendirse.
+    scanner_poll_timeout_sec: int = 60
+
     @property
     def cors_origin_list(self) -> list[str]:
         raw = self.cors_origins.strip()

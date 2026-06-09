@@ -240,6 +240,17 @@ Cómo quedó (ver `backend/README.md` para correr/deployar):
 - **`backend/app/datasource.py` + `powerbi/client.py`**: lecturas desde Power BI (REST API + token
   client-credentials; tablas vía XMLA/DAX). El `PowerBIClient` tiene `refresh_dataset()` (enhanced
   refresh selectivo) y `get_refresh_status()` que usa el scheduler.
+- **Tablas de modelos con RLS (fallback Scanner API):** los modelos con seguridad a nivel de fila
+  (RLS, `isEffectiveIdentityRequired: true`) rechazan las consultas DAX del service principal con
+  **401 `PowerBINotAuthorizedException`**, así que `executeQueries`/`INFO.VIEW.TABLES()` no puede
+  listar sus tablas. Ante ese 401, `client.list_tables` cae a la **Scanner API** (admin metadata,
+  `POST /admin/workspaces/getInfo` → poll `scanStatus` → `scanResult`), que lee el esquema **sin
+  ejecutar DAX** (esquiva el RLS). El resultado (mapa `dataset_id → [tablas]` de todos los workspaces
+  visibles) se **cachea** `PBI_SCANNER_CACHE_TTL_MIN` min. Requiere que el tenant habilite *"service
+  principals can use read-only admin APIs"* (ya está habilitado en el tenant de prueba). Si el scan
+  falla (o `PBI_SCANNER_ENABLED=0`), se levanta `TablesUnavailableError` → la ruta responde **502 con
+  `detail`** y el front lo muestra en su estado de error (en vez del falso "el modelo no tiene tablas").
+  Verificado contra el tenant real (2026-06-08). Detalle en la memoria del proyecto.
 - **Credenciales por `.env`** (prefijo `PBI_`, ver `backend/.env.example`):
   `PBI_TENANT_ID/CLIENT_ID/CLIENT_SECRET` (obligatorias), etc. Cambiar credenciales = editar `.env`
   y reiniciar. **No hay modo seed**: sin credenciales el backend no arranca.

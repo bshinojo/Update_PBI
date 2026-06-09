@@ -2,8 +2,9 @@
   height: 100%;
   overflow-y: auto;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  /* Bloque arriba a la izquierda (no centrado). */
+  align-items: flex-start;
+  justify-content: flex-start;
   padding: var(--space-6);
   background: var(--color-bg);
 }
@@ -17,6 +18,10 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-2);
   padding: 48px;
+  /* En "--GENERAL--" el bloque se ve más chico (x0.75) y corrido hacia arriba-izquierda. */
+  transform: translateY(-2%) scale(0.75);
+  transform-origin: top left;
+  animation: cardIn 0.5s ease both;
 }
 
 .eyebrow {
@@ -61,10 +66,18 @@
 .step {
   display: flex;
   gap: var(--space-4);
-  align-items: flex-start;
+  align-items: center;
+  /* Entrada escalonada (el delay se setea inline por índice). */
+  animation: stepIn 0.5s ease both;
+}
+
+.body {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .num {
+  position: relative;
   flex: none;
   width: 48px;
   height: 48px;
@@ -76,6 +89,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Timeline: línea que baja desde cada número hacia el siguiente. */
+.step:not(:last-child) .num::after {
+  content: '';
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: calc(var(--space-5) + 4px);
+  background: linear-gradient(var(--color-gold), transparent);
 }
 
 .stepTitle {
@@ -91,6 +116,23 @@
   color: var(--color-muted);
 }
 
+/* Ícono gráfico de cada paso, en disco sky. */
+.glyphWrap {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--color-accent-weak);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.glyph {
+  width: 30px;
+  height: 30px;
+}
+
 .note {
   margin: var(--space-6) 0 0;
   padding-top: var(--space-5);
@@ -101,4 +143,33 @@
 }
 .note strong {
   color: var(--color-muted);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2%) translateX(-2%) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-2%) scale(0.75);
+  }
+}
+
+@keyframes stepIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .step {
+    animation: none;
+  }
 }

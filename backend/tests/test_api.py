@@ -88,6 +88,29 @@ def test_404_and_422(client):
     assert bad.status_code == 422
 
 
+def test_tables_read_failure_is_502_with_detail(tmp_path):
+    # Una lectura FALLIDA de tablas (p. ej. modelo con RLS que Power BI rechaza) NO
+    # debe verse como "el modelo no tiene tablas": el endpoint responde 502 con un
+    # `detail` apto para el usuario, que el front muestra en su estado de error.
+    from app.datasource import TablesUnavailableError
+
+    class RlsDataSource(FakeDataSource):
+        def list_tables(self, dataset_id):
+            raise TablesUnavailableError("El modelo tiene RLS; no se pudieron leer las tablas.")
+
+    ds = RlsDataSource()
+    store = ScheduleStore(str(tmp_path / "db.json"), ds)
+    app.dependency_overrides[get_store] = lambda: store
+    app.dependency_overrides[get_datasource] = lambda: ds
+    try:
+        with TestClient(app) as c:
+            r = c.get("/datasets/ds-ventas-retail/tables")
+            assert r.status_code == 502
+            assert "RLS" in r.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_persistence_survives_reload(tmp_path):
     db = tmp_path / "persist.json"
     s1 = ScheduleStore(str(db), FakeDataSource())

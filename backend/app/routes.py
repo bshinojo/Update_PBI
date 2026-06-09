@@ -5,7 +5,7 @@
 # y van ausentes cuando no aplican. El front los trata por truthiness en ambos casos.
 from fastapi import APIRouter, Depends, HTTPException
 
-from .datasource import DataSource
+from .datasource import DataSource, TablesUnavailableError
 from .dependencies import get_datasource, get_store
 from .models import (
     CreateScheduleInput,
@@ -38,7 +38,12 @@ def list_datasets(workspace_id: str, ds: DataSource = Depends(get_datasource)):
     response_model_exclude_none=True,
 )
 def list_tables(dataset_id: str, store: ScheduleStore = Depends(get_store)):
-    return store.list_tables(dataset_id)
+    try:
+        return store.list_tables(dataset_id)
+    except TablesUnavailableError as e:
+        # 502: la lectura falló del lado de Power BI (p. ej. RLS). El front muestra
+        # `detail` en su estado de error, en vez del falso "el modelo no tiene tablas".
+        raise HTTPException(status_code=502, detail=e.detail)
 
 
 @router.get(

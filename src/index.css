@@ -1,5 +1,5 @@
 /* Fuentes de marca RFDD (sustitutos libres de Google Fonts). */
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600;700&display=swap');
 
 /*
   TEMA RFDD — Romano, Fiocca & Díaz Delfino (Desarrollo de Negocios).
@@ -7,7 +7,7 @@
   - Ancla NAVY #0E2543 (texto, acciones primarias, header). Secundario SKY.
     Acento GOLD con MUCHA moderación (flourishes/números clave, nunca CTAs).
   - Fondo PAPER #F7F6F2 (blanco cálido, "membrete"), tarjetas en blanco.
-  - Tipos: Cormorant Garamond (display/títulos), Source Serif 4 (lead),
+  - Tipos: EB Garamond (display/títulos, Garamond más legible), Source Serif 4 (lead),
     Inter (UI, labels, números tabulares). Labels en VERSALITAS tracked.
   - Sombras navy SUTILES (no negro puro). Bordes hairline 1px. Radios chicos.
   Single source of truth de tokens: rfdd-design-system/project/colors_and_type.css
@@ -55,7 +55,7 @@
   --color-disabled-bg: #eef1f4;   /* ink-100 */
 
   /* ---------- Tipografía ---------- */
-  --font-display: 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
+  --font-display: 'EB Garamond', Garamond, 'Times New Roman', serif;
   --font-serif: 'Source Serif 4', Georgia, serif;
   --font: 'Inter', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-sans: var(--font);
