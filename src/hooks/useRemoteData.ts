@@ -58,6 +58,9 @@ export function useRemoteData<T>(
   }, [run])
 
   const setData = useCallback((updater: (current: T | undefined) => T) => {
+    // Invalida cualquier respuesta en vuelo (refetch o poll): el dato local recién
+    // aplicado es más nuevo que lo que esa respuesta traiga, y no debe pisarlo.
+    tokenRef.current++
     const next = updater(dataRef.current)
     dataRef.current = next
     setState(success(next))

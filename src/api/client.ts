@@ -21,6 +21,8 @@ export interface ScheduleApi {
   updateSchedule(id: string, patch: UpdateScheduleInput): Promise<ScheduleMutationResult>
   setScheduleEnabled(id: string, enabled: boolean): Promise<ScheduleMutationResult>
   deleteSchedule(id: string): Promise<ScheduleMutationResult>
+  /** Dispara el refresh YA, fuera de su horario ("Ejecutar ahora"). */
+  runScheduleNow(id: string): Promise<ScheduleMutationResult>
 }
 
 /** Error normalizado de la capa de API (el `status` imita un código HTTP). */

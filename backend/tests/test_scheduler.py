@@ -268,3 +268,56 @@ def test_due_schedules_skips_corrupt_schedule(store, settings):
     sched.tick(at(5, 0))            # ancla ambos
     fired = sched.tick(at(8, 0))    # ambos vencerían; el corrupto se saltea sin romper
     assert good.id in fired and bad.id not in fired
+
+
+# --- Ejecutar ahora (run_now) ---
+
+
+def test_run_now_fires_out_of_schedule(store, settings):
+    # Dispara YA aunque falte mucho para su horario; token None -> Completed.
+    sch = _make_daily(store, time="23:00")
+    ex = FakeExecutor()
+    sched = Scheduler(store, ex, settings)
+    sched.run_now(sch.id, at(8, 0))
+    assert ex.start_calls == [sch.id]
+    assert _status(store, sch.id) == "Completed"
+
+
+def test_run_now_works_on_paused_schedule(store, settings):
+    # "Habilitado" gobierna la programación automática; la ejecución manual es
+    # una decisión explícita, así que corre igual sobre un schedule pausado.
+    sch = _make_daily(store, time="23:00", enabled=False)
+    ex = FakeExecutor()
+    sched = Scheduler(store, ex, settings)
+    sched.run_now(sch.id, at(8, 0))
+    assert ex.start_calls == [sch.id]
+
+
+def test_run_now_rejects_when_already_running(store, settings):
+    from app.scheduler import AlreadyRunningError
+
+    sch = _make_daily(store, time="06:00")
+    ex = FakeExecutor(token="r1", poll_results=["InProgress"] * 5)
+    sched = Scheduler(store, ex, settings)
+    sched.tick(at(5, 0))
+    sched.tick(at(6, 30))  # dispara -> queda en vuelo
+    with pytest.raises(AlreadyRunningError):
+        sched.run_now(sch.id, at(6, 31))
+    # Y también si OTRO schedule del mismo dataset está en vuelo.
+    other = store.create(
+        CreateScheduleInput(
+            dataset_id="ds-calidad", workspace_id="ws-ops", tables=["Defectos"],
+            frequency=DailyFrequency(kind="daily", time="23:00"),
+            refresh_type="full", enabled=True,
+        )
+    ).affected
+    with pytest.raises(AlreadyRunningError):
+        sched.run_now(other.id, at(6, 31))
+
+
+def test_run_now_unknown_schedule_raises(store, settings):
+    from app.store import NotFoundError
+
+    sched = Scheduler(store, FakeExecutor(), settings)
+    with pytest.raises(NotFoundError):
+        sched.run_now("no-existe", at(8, 0))

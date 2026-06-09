@@ -72,4 +72,9 @@ export class HttpScheduleApi implements ScheduleApi {
       method: 'DELETE',
     })
   }
+  runScheduleNow(id: string) {
+    return this.request<ScheduleMutationResult>(`/schedules/${id}/run`, {
+      method: 'POST',
+    })
+  }
 }

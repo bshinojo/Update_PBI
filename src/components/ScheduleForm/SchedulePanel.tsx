@@ -26,6 +26,8 @@ interface SchedulePanelProps {
   /** Tablas tildadas que ya tenían schedule y serán reasignadas (modo crear). */
   reassignTables: string[]
   onSaved: (result: ScheduleMutationResult) => void
+  /** "Ejecutar ahora": aplica el resultado a la vista SIN salir del modo edición. */
+  onRan: (result: ScheduleMutationResult) => void
   /** Salir del modo edición y volver a "nueva programación". */
   onCancelEdit: () => void
 }
@@ -44,6 +46,7 @@ export function SchedulePanel({
   checkedTableNames,
   reassignTables,
   onSaved,
+  onRan,
   onCancelEdit,
 }: SchedulePanelProps) {
   const { state, patch, toggleDailyDay, toggleHourlyDay, build } = useScheduleForm(
@@ -52,6 +55,10 @@ export function SchedulePanel({
   const [errors, setErrors] = useState<string[]>([])
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Eliminar pide confirmación: el primer click "arma" el botón, el segundo borra.
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [runMessage, setRunMessage] = useState<string | null>(null)
 
   const isEdit = editing !== null
   const targetTables = isEdit ? editing.tables : checkedTableNames
@@ -96,6 +103,10 @@ export function SchedulePanel({
 
   async function handleDelete() {
     if (editing === null) return
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      return
+    }
     setSubmitError(null)
     setBusy(true)
     try {
@@ -105,6 +116,23 @@ export function SchedulePanel({
       setSubmitError(e instanceof ApiError ? e.message : 'No se pudo eliminar la programación.')
     } finally {
       setBusy(false)
+      setConfirmDelete(false)
+    }
+  }
+
+  async function handleRunNow() {
+    if (editing === null) return
+    setRunMessage(null)
+    setSubmitError(null)
+    setRunning(true)
+    try {
+      const mutation = await api.runScheduleNow(editing.id)
+      onRan(mutation)
+      setRunMessage('Refresh disparado: mirá el estado en la columna "Último run".')
+    } catch (e) {
+      setSubmitError(e instanceof ApiError ? e.message : 'No se pudo disparar el refresh.')
+    } finally {
+      setRunning(false)
     }
   }
 
@@ -128,9 +156,10 @@ export function SchedulePanel({
                 type="button"
                 className="btn btn-danger"
                 onClick={handleDelete}
-                disabled={busy}
+                onBlur={() => setConfirmDelete(false)}
+                disabled={busy || running}
               >
-                Eliminar
+                {confirmDelete ? '¿Seguro? Eliminar' : 'Eliminar'}
               </button>
               <button
                 type="button"
@@ -179,6 +208,23 @@ export function SchedulePanel({
             {reassignTables.length === 1
               ? `La tabla ${reassignTables[0]} ya tenía una programación y se moverá a esta (se quita de la anterior).`
               : `Estas tablas ya tenían programación y se moverán a esta (se quitan de la anterior): ${reassignTables.join(', ')}.`}
+          </div>
+        ) : null}
+
+        {isEdit ? (
+          <div className={styles.runRow}>
+            <button
+              type="button"
+              className="btn"
+              onClick={handleRunNow}
+              disabled={busy || running}
+            >
+              {running ? 'Disparando…' : '▶ Ejecutar ahora'}
+            </button>
+            <span className={styles.fieldHint}>
+              Dispara el refresh ya mismo, además de la programación.
+            </span>
+            {runMessage ? <span className={styles.runOk}>{runMessage}</span> : null}
           </div>
         ) : null}
 

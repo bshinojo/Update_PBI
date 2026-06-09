@@ -53,6 +53,7 @@ end-to-end: el `HttpScheduleApi` real corre contra esta API sin cambios.
 | PATCH | `/schedules/{id}` | `UpdateScheduleInput` | `ScheduleMutationResult` |
 | PUT | `/schedules/{id}/enabled` | `{ enabled }` | `ScheduleMutationResult` |
 | DELETE | `/schedules/{id}` | — | `ScheduleMutationResult` |
+| POST | `/schedules/{id}/run` | — | `ScheduleMutationResult` ("Ejecutar ahora": dispara YA, fuera de horario; 409 si ya hay un refresh en curso, 503 si el scheduler no corre) |
 
 `GET /health` devuelve `{ status }`.
 

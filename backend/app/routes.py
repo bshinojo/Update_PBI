@@ -6,7 +6,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from .datasource import DataSource, TablesUnavailableError
-from .dependencies import get_datasource, get_store
+from .dependencies import get_datasource, get_scheduler, get_store
+from .scheduler import AlreadyRunningError, Scheduler
 from .models import (
     CreateScheduleInput,
     Dataset,
@@ -119,3 +120,43 @@ def delete_schedule(schedule_id: str, store: ScheduleStore = Depends(get_store))
         return store.delete(schedule_id)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post(
+    "/schedules/{schedule_id}/run",
+    response_model=ScheduleMutationResult,
+    response_model_exclude_none=True,
+)
+def run_schedule_now(
+    schedule_id: str,
+    store: ScheduleStore = Depends(get_store),
+    scheduler: Scheduler = Depends(get_scheduler),
+):
+    """Dispara el refresh del schedule YA, fuera de su horario (botón "Ejecutar
+    ahora"). Devuelve el mismo shape que las demás mutaciones: el schedule con su
+    lastRun nuevo (InProgress, o terminal si el disparo se resolvió al instante)."""
+    if not scheduler.is_running:
+        # Sin el hilo del scheduler nadie pollearía el refresh: quedaría InProgress
+        # para siempre. Mejor rechazar con un mensaje claro.
+        raise HTTPException(
+            status_code=503,
+            detail="El scheduler no está corriendo; no se puede ejecutar a demanda.",
+        )
+    try:
+        scheduler.run_now(schedule_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except AlreadyRunningError as e:
+        raise HTTPException(status_code=409, detail=e.detail)
+    affected = store.get(schedule_id)
+    try:
+        tables = store.list_tables(affected.dataset_id)
+    except TablesUnavailableError:
+        # El refresh YA se disparó; solo falló releer las tablas (p. ej. RLS con el
+        # cache del scanner vencido). El polling del front va a reflejar el estado.
+        raise HTTPException(
+            status_code=502,
+            detail="El refresh se disparó, pero no se pudieron releer las tablas; "
+            "el estado se va a actualizar solo en unos segundos.",
+        )
+    return ScheduleMutationResult(affected=affected, tables=tables)

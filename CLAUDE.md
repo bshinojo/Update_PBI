@@ -228,6 +228,7 @@ Implementa el contrato `ScheduleApi` (ver `src/api/client.ts`). El stub
 | PATCH | `/schedules/{id}` | `UpdateScheduleInput` | `ScheduleMutationResult` |
 | PUT | `/schedules/{id}/enabled` | `{ enabled }` | `ScheduleMutationResult` |
 | DELETE | `/schedules/{id}` | — | `ScheduleMutationResult` |
+| POST | `/schedules/{id}/run` | — | `ScheduleMutationResult` ("Ejecutar ahora"; 409 si ya corre, 503 sin scheduler) |
 
 Cómo quedó (ver `backend/README.md` para correr/deployar):
 - **`backend/app/models.py`**: modelos Pydantic espejando `types.ts`, serializados en camelCase
@@ -288,6 +289,18 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
     una frecuencia corrupta (JSON editado a mano) no mata el tick entero. Y al arrancar,
     `reconcile_orphans()` marca `Failed` los `InProgress` que quedaron en disco tras un reinicio
     (su token de polling se perdió; evita el spinner eterno en la UI).
+  - **Ejecutar ahora** (paquete "estado vivo"): `run_now(scheduleId)` dispara a demanda, fuera de
+    horario y aunque el schedule esté pausado (lo manual es decisión explícita). Rechaza con
+    `AlreadyRunningError` si ese schedule (u otro del mismo dataset) ya tiene un refresh en vuelo.
+    `tick()` y `run_now()` se serializan con `_op_lock` (el handler HTTP y el hilo comparten
+    `_pending`). Ruta: `POST /schedules/{id}/run` (404/409; 503 si el hilo no corre, porque nadie
+    pollearía el refresh).
+  - **Estado vivo en la UI** (front): `useTables` pollea `GET /schedules` cada 30 s en segundo
+    plano (solo schedules: no toca Power BI) y mergea sin pasar por `loading` → el spinner
+    "En curso" se resuelve solo en pantalla. `useRemoteData.setData` invalida respuestas en vuelo
+    (token), y `applyMutation` descarta resultados de OTRO dataset (race al cambiar de modelo con
+    una mutación en vuelo). El rail en edición tiene botón **"▶ Ejecutar ahora"** y **Eliminar
+    pide confirmación** (segundo click; se desarma al perder foco).
 - **`backend/app/executor.py`**: protocolo de dos fases `start(schedule)->token|None` y
   `poll(schedule,token)->RunStatus` (el refresh real es asíncrono). `PowerBIRefreshExecutor`:
   `refresh_dataset()` (devuelve `refreshId`) + `get_refresh_status()`; `_map_status` traduce el
@@ -304,7 +317,7 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
   frecuencias y bordes), scheduler con reloj controlado + executor falso (disparo, polling
   InProgress→Completed/Failed, timeout, no re-disparo en vuelo, serialización por dataset), executor
   (mapeo de estados + delegación al cliente con cliente falso), y los 8 endpoints. Corren **sin
-  credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 48 tests, todo verde.
+  credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 54 tests, todo verde.
 - **Validación de inputs (paquete "robustez")**: los modelos de input (`models.py`) validan rangos
   además de la UI (defensa en profundidad, porque la API no tiene auth): `time` "HH:mm",
   `startHour/endHour` 0–23 (y desde≤hasta), `daysOfWeek` 0–6, `dayOfMonth` 1–28 o -1, y ≥1 tabla

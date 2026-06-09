@@ -74,6 +74,19 @@
   color: var(--color-warn);
 }
 
+/* "Ejecutar ahora" (solo en edición): botón + hint en línea, feedback debajo. */
+.runRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+.runOk {
+  width: 100%;
+  font-size: var(--fs-sm);
+  color: var(--color-ok);
+}
+
 .field {
   display: flex;
   flex-direction: column;

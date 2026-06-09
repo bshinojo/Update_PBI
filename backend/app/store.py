@@ -103,6 +103,11 @@ class ScheduleStore:
 
     # --- Lecturas ---
 
+    def get(self, schedule_id: str) -> Schedule:
+        """Copia de un schedule por id (NotFoundError si no existe)."""
+        with self._lock:
+            return self._find(schedule_id).model_copy(deep=True)
+
     def list_schedules(self, dataset_id: str) -> list[Schedule]:
         with self._lock:
             return [s.model_copy(deep=True) for s in self._schedules if s.dataset_id == dataset_id]

@@ -195,6 +195,7 @@ function Shell() {
               checkedTableNames={checkedTableNames}
               reassignTables={reassignTables}
               onSaved={handleSaved}
+              onRan={tables.applyMutation}
               onCancelEdit={() => setEditing(null)}
             />
           </>

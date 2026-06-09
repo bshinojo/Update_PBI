@@ -21,6 +21,15 @@ from .store import ScheduleStore
 logger = logging.getLogger("pbi.scheduler")
 
 
+class AlreadyRunningError(Exception):
+    """No se puede disparar ahora: ya hay un refresh en curso (del mismo schedule o
+    de otro schedule sobre el mismo dataset). Se mapea a HTTP 409 en las rutas."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
+
+
 @dataclass
 class _Pending:
     """Un refresh disparado que sigue en curso y hay que pollear."""
@@ -49,6 +58,9 @@ class Scheduler:
         self._anchors: dict[str, datetime] = {}
         # Refreshes en vuelo (scheduleId -> pendiente), para resolver InProgress.
         self._pending: dict[str, _Pending] = {}
+        # Serializa tick() (hilo del scheduler) con run_now() (handlers HTTP): ambos
+        # leen/escriben _pending y disparan refreshes, así que no pueden solaparse.
+        self._op_lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
 
@@ -114,27 +126,53 @@ class Scheduler:
         tiene uno en vuelo el disparo se DIFIERE al próximo tick (se evita el Failed
         espurio por colisión)."""
         now = now or self.now()
-        fired: list[str] = []
-        # Datasets con un refresh en vuelo (de ticks anteriores).
-        busy_datasets = {p.schedule.dataset_id for p in self._pending.values()}
-        for sch in self.due_schedules(now):
+        with self._op_lock:
+            fired: list[str] = []
+            # Datasets con un refresh en vuelo (de ticks anteriores).
+            busy_datasets = {p.schedule.dataset_id for p in self._pending.values()}
+            for sch in self.due_schedules(now):
+                if sch.id in self._pending:
+                    continue  # este schedule ya tiene un refresh en vuelo
+                if sch.dataset_id in busy_datasets:
+                    logger.info(
+                        "Schedule %s diferido: el dataset %s ya tiene un refresh en curso",
+                        sch.id, sch.dataset_id,
+                    )
+                    continue  # otro schedule del mismo dataset corre -> reintenta próximo tick
+                self._fire(sch, now)
+                fired.append(sch.id)
+                # Si quedó async en vuelo, el dataset queda ocupado también para este tick
+                # (dos schedules del mismo dataset vencidos a la vez no colisionan).
+                if sch.id in self._pending:
+                    busy_datasets.add(sch.dataset_id)
+            self._poll_pending(now)
+            self._gc_anchors()
+            return fired
+
+    def run_now(self, schedule_id: str, now: datetime | None = None) -> None:
+        """Dispara un schedule A DEMANDA (botón "Ejecutar ahora"), fuera de su horario.
+        Corre aunque el schedule esté pausado: "Habilitado" gobierna la programación
+        automática; la ejecución manual es una decisión explícita del usuario.
+        Lanza NotFoundError si no existe y AlreadyRunningError si ese schedule (u otro
+        del mismo dataset) ya tiene un refresh en vuelo. El polling del scheduler
+        resuelve el InProgress como con cualquier disparo."""
+        now = now or self.now()
+        sch = self._store.get(schedule_id)  # NotFoundError si no existe
+        with self._op_lock:
             if sch.id in self._pending:
-                continue  # este schedule ya tiene un refresh en vuelo
-            if sch.dataset_id in busy_datasets:
-                logger.info(
-                    "Schedule %s diferido: el dataset %s ya tiene un refresh en curso",
-                    sch.id, sch.dataset_id,
+                raise AlreadyRunningError("Esta programación ya tiene un refresh en curso.")
+            if any(p.schedule.dataset_id == sch.dataset_id for p in self._pending.values()):
+                raise AlreadyRunningError(
+                    "El modelo ya tiene un refresh en curso; esperá a que termine.",
                 )
-                continue  # otro schedule del mismo dataset corre -> reintenta próximo tick
+            logger.info("Schedule %s disparado a demanda (Ejecutar ahora)", sch.id)
             self._fire(sch, now)
-            fired.append(sch.id)
-            # Si quedó async en vuelo, el dataset queda ocupado también para este tick
-            # (dos schedules del mismo dataset vencidos a la vez no colisionan).
-            if sch.id in self._pending:
-                busy_datasets.add(sch.dataset_id)
-        self._poll_pending(now)
-        self._gc_anchors()
-        return fired
+
+    @property
+    def is_running(self) -> bool:
+        """True si el hilo del scheduler está corriendo (sin él, un disparo asíncrono
+        nunca se pollearía y quedaría InProgress)."""
+        return self._thread is not None
 
     def _fire(self, sch: Schedule, now: datetime) -> None:
         ts = now.isoformat(timespec="seconds")

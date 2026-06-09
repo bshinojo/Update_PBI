@@ -165,3 +165,52 @@ def test_persistence_survives_reload(tmp_path):
     s2 = ScheduleStore(str(db), FakeDataSource())
     ids = {s.id for s in s2.list_schedules("ds-ventas-retail")}
     assert "sch-1" not in ids and "sch-2" in ids
+
+
+def test_run_now_endpoint(tmp_path):
+    # POST /schedules/{id}/run dispara a demanda y devuelve el shape de mutación.
+    from app.dependencies import get_scheduler
+    from app.config import Settings
+    from app.scheduler import Scheduler
+
+    class RunningScheduler(Scheduler):
+        # El route exige que el hilo esté vivo (sin él nadie pollea); en tests no
+        # arrancamos hilos, así que lo simulamos.
+        @property
+        def is_running(self):
+            return True
+
+    class InstantExecutor:
+        def start(self, schedule):
+            return None  # resuelto al instante -> Completed
+
+        def poll(self, schedule, token):
+            return "Completed"
+
+    ds = FakeDataSource()
+    store = ScheduleStore(str(tmp_path / "db.json"), ds)
+    store._schedules = seed_schedules()
+    store._save()
+    sched = RunningScheduler(store, InstantExecutor(), Settings(scheduler_enabled=False))
+    app.dependency_overrides[get_store] = lambda: store
+    app.dependency_overrides[get_datasource] = lambda: ds
+    app.dependency_overrides[get_scheduler] = lambda: sched
+    try:
+        with TestClient(app) as c:
+            r = c.post("/schedules/sch-1/run")
+            assert r.status_code == 200
+            body = r.json()
+            assert body["affected"]["id"] == "sch-1"
+            assert body["affected"]["lastRun"]["status"] == "Completed"
+            assert any(t["name"] == "Ventas" for t in body["tables"])
+            # Inexistente -> 404.
+            assert c.post("/schedules/nope/run").status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_run_now_endpoint_503_without_scheduler(client):
+    # Con el scheduler apagado (conftest: PBI_SCHEDULER_ENABLED=0, hilo nunca
+    # arranca) la ejecución a demanda se rechaza con un mensaje claro.
+    r = client.post("/schedules/sch-1/run")
+    assert r.status_code == 503
