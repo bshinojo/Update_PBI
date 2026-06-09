@@ -1,6 +1,13 @@
 .indicator {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
+}
+/* Cuándo fue el último run ("hace 2 h"): chico y atenuado, al lado del ícono. */
+.when {
+  font-size: var(--fs-xs);
+  color: var(--color-muted);
+  white-space: nowrap;
 }
 .none {
   color: var(--color-faint);

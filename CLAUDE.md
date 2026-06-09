@@ -193,9 +193,16 @@ un backend real con latencia.
   `public/favicon.svg`. Verificado por captura headless (typecheck + build limpios).
 - `npm run typecheck` y `npm run build` limpios. Build estático servible por nginx
   (`nginx.example.conf` incluido). Verificado en navegador real contra el backend.
-- **Tests unitarios del front (Vitest, `npm run test`): 19, todo verde.** Cubren la lógica pura:
-  `domain/frequency.ts` (`formatFrequency`, `scheduleTime`, `hourlyIntervalMinutes`, `formatHour`)
-  y la validación `ScheduleForm/useScheduleForm.buildFrequency` (todas las frecuencias + bordes).
+- **Tests unitarios del front (Vitest, `npm run test`): 24, todo verde.** Cubren la lógica pura:
+  `domain/frequency.ts` (`formatFrequency`, `scheduleTime`, `hourlyIntervalMinutes`, `formatHour`),
+  `domain/time.ts` (`formatRelativeTime`) y la validación
+  `ScheduleForm/useScheduleForm.buildFrequency` (todas las frecuencias + bordes).
+- **Pulido UX (paquete 3)**: la tabla tiene **filtro por nombre** (input en el encabezado de la
+  columna, sin acentos/mayúsculas; "Seleccionar todas" opera sobre las VISIBLES sin pisar la
+  selección de las ocultas; se resetea al cambiar de modelo vía `key={datasetId}`). El "Último
+  run" muestra **cuándo fue** ("hace 2 h", `domain/time.ts`; el polling de 30s lo mantiene
+  fresco). Los **errores del rail van arriba** (pegados al header donde vive el CTA). El copy del
+  `WelcomeGuide` se corrigió (ya no menciona el selector de tipo de refresh eliminado).
 - **Backend FastAPI (etapa A, ver §6.A): implementado en `backend/`.** Los 8 endpoints del
   contrato, JSON camelCase idéntico a `types.ts` (sin mapeo en `http-client.ts`), persistencia
   en archivo JSON, reasignación + invariante. **Power BI-only**: requiere credenciales por

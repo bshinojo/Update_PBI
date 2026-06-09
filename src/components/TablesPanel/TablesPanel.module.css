@@ -34,7 +34,26 @@
   border-bottom: 1px solid var(--color-border);
 }
 .statusCol {
-  width: 96px;
+  width: 120px;
+}
+
+/* Filtro por nombre (en el slot de acciones del encabezado de la columna). */
+.filter {
+  width: 170px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+  transition: border-color var(--dur-fast) var(--ease-standard);
+}
+.filter:hover,
+.filter:focus-visible {
+  border-color: var(--color-accent);
+}
+.filter::placeholder {
+  color: var(--color-faint);
 }
 /* Header "Tabla" + toggle "Seleccionar todas" (reemplaza al checkbox de cabecera). */
 .thTabla {

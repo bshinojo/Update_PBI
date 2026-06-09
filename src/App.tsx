@@ -180,6 +180,7 @@ function Shell() {
         ) : (
           <>
             <TablesPanel
+              key={selection.selectedDatasetId ?? 'none'}
               data={tables.state}
               checked={selection.checkedTables}
               editingTables={editing ? editing.tables : []}

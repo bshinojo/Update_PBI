@@ -187,6 +187,17 @@ export function SchedulePanel({
       />
 
       <div className={styles.body}>
+        {/* Errores ARRIBA, pegados al header donde vive el CTA: si el rail es largo,
+            un error al fondo puede quedar fuera de vista al clickear Programar. */}
+        {errors.length > 0 ? (
+          <ul className={styles.errors}>
+            {errors.map((er, i) => (
+              <li key={i}>{er}</li>
+            ))}
+          </ul>
+        ) : null}
+        {submitError ? <div className={styles.submitError}>{submitError}</div> : null}
+
         {targetTables.length === 0 ? (
           <p className={styles.emptyHint}>
             Seleccioná una o más tablas de la izquierda (tocá la fila) para programarlas.
@@ -293,14 +304,6 @@ export function SchedulePanel({
           </div>
         ) : null}
 
-        {errors.length > 0 ? (
-          <ul className={styles.errors}>
-            {errors.map((er, i) => (
-              <li key={i}>{er}</li>
-            ))}
-          </ul>
-        ) : null}
-        {submitError ? <div className={styles.submitError}>{submitError}</div> : null}
       </div>
     </section>
   )

@@ -38,7 +38,7 @@ const STEPS: { t: string; d: string; icon: ReactNode }[] = [
   },
   {
     t: 'Marcá qué actualizar',
-    d: 'Seleccioná los orígenes de datos (o las tablas) que necesitás refrescar.',
+    d: 'Tocá las filas de la lista para seleccionar las tablas que querés mantener actualizadas.',
     icon: (
       <Glyph>
         <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
@@ -48,7 +48,7 @@ const STEPS: { t: string; d: string; icon: ReactNode }[] = [
   },
   {
     t: 'Definí la frecuencia',
-    d: 'En el panel de la derecha elegí cada cuánto y el tipo de actualización: completa, solo datos o solo cálculo.',
+    d: 'En el panel de la derecha elegí cada cuánto: diario, cada N horas, semanal o mensual. La actualización siempre es completa (datos + recálculo).',
     icon: (
       <Glyph>
         <circle cx="12" cy="12" r="8.5" />
