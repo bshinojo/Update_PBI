@@ -324,7 +324,7 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
   frecuencias y bordes), scheduler con reloj controlado + executor falso (disparo, polling
   InProgress→Completed/Failed, timeout, no re-disparo en vuelo, serialización por dataset), executor
   (mapeo de estados + delegación al cliente con cliente falso), y los 8 endpoints. Corren **sin
-  credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 54 tests, todo verde.
+  credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 55 tests, todo verde.
 - **Validación de inputs (paquete "robustez")**: los modelos de input (`models.py`) validan rangos
   además de la UI (defensa en profundidad, porque la API no tiene auth): `time` "HH:mm",
   `startHour/endHour` 0–23 (y desde≤hasta), `daysOfWeek` 0–6, `dayOfMonth` 1–28 o -1, y ≥1 tabla
@@ -359,6 +359,7 @@ npm run build      # -> dist/ estático
 npm run preview    # sirve dist/ para verificar
 npm run typecheck  # tsc --noEmit (incluye chequeo de casing cross-platform)
 npm run test       # vitest run (tests unitarios de la lógica pura del front)
+npm run lint       # eslint (reglas de hooks de React + TS; sin reglas de formato)
 ```
 
 Necesita el backend corriendo (`cd backend && ./run.sh`); Vite proxya `/api`→`:8000`. La única

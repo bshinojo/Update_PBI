@@ -321,3 +321,23 @@ def test_run_now_unknown_schedule_raises(store, settings):
     sched = Scheduler(store, FakeExecutor(), settings)
     with pytest.raises(NotFoundError):
         sched.run_now("no-existe", at(8, 0))
+
+
+# --- Health del scheduler ---
+
+
+def test_health_reports_running_and_freshness(store, settings):
+    sched = Scheduler(store, FakeExecutor(), settings)
+    # Sin hilo ni ticks: no corre, no es healthy.
+    h = sched.health()
+    assert h["running"] is False and h["lastTickAt"] is None and h["healthy"] is False
+
+    # Simulamos hilo vivo + tick reciente -> healthy.
+    sched._thread = object()  # type: ignore[assignment]
+    sched._last_tick_at = sched.now()
+    assert sched.health()["healthy"] is True
+
+    # Último tick viejo (el loop se colgó) -> unhealthy aunque el hilo "exista".
+    sched._last_tick_at = sched.now() - timedelta(minutes=10)
+    h = sched.health()
+    assert h["running"] is True and h["healthy"] is False

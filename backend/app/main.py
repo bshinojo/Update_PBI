@@ -62,7 +62,10 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    # `status` = la API responde. `scheduler` = estado del worker (running / último
+    # tick / healthy), para monitorear que los refreshes se sigan disparando: si el
+    # hilo se cuelga, `scheduler.healthy` pasa a False aunque la API siga viva.
+    return {"status": "ok", "scheduler": get_scheduler().health()}
 
 
 app.include_router(router)

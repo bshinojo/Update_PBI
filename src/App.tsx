@@ -74,7 +74,6 @@ function Shell() {
   // Cambiar de modelo descarta la edición en curso.
   useEffect(() => {
     setEditing(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection.selectedDatasetId])
 
   // Tablas del dataset actual que ya tienen schedule (para avisar reasignación al crear).

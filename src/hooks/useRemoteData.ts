@@ -52,7 +52,10 @@ export function useRemoteData<T>(
   useEffect(() => {
     run()
     return () => {
-      // Invalida respuestas en vuelo al desmontar o cambiar deps.
+      // Invalida respuestas en vuelo al desmontar o cambiar deps. Queremos
+      // INTENCIONALMENTE el valor actual del token (no el del setup), para que la
+      // promesa vieja vea el mismatch y se descarte; por eso ignoramos el aviso.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       tokenRef.current++
     }
   }, [run])

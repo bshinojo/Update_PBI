@@ -63,9 +63,27 @@ class Scheduler:
         self._op_lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
+        # Marca de tiempo del último tick que corrió (lo escribe el loop). Sirve para
+        # el health check: si el hilo se cuelga, este valor deja de avanzar.
+        self._last_tick_at: datetime | None = None
 
     def now(self) -> datetime:
         return datetime.now(self._tz)
+
+    def health(self) -> dict:
+        """Estado del worker para `GET /health`. `healthy` es False si el hilo no
+        corre o si el último tick quedó viejo (el loop se colgó): pasado ~2 ticks
+        sin avanzar, algo anda mal y conviene alertar/reiniciar."""
+        last = self._last_tick_at
+        fresh = last is not None and (
+            (self.now() - last).total_seconds() <= self._tick_seconds * 2 + 5
+        )
+        return {
+            "running": self.is_running,
+            "lastTickAt": last.isoformat(timespec="seconds") if last else None,
+            "healthy": self.is_running and fresh,
+        }
+
 
     # --- Decisión (pura respecto del reloj) ---
 
@@ -262,6 +280,7 @@ class Scheduler:
         while not self._stop.is_set():
             try:
                 self.tick()
+                self._last_tick_at = self.now()  # marca de salud: el loop avanza
             except Exception:  # noqa: BLE001 - un error de un tick no debe matar el worker
                 logger.exception("Error en el tick del scheduler")
             self._stop.wait(self._tick_seconds)

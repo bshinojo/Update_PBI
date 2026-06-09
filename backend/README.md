@@ -55,7 +55,10 @@ end-to-end: el `HttpScheduleApi` real corre contra esta API sin cambios.
 | DELETE | `/schedules/{id}` | — | `ScheduleMutationResult` |
 | POST | `/schedules/{id}/run` | — | `ScheduleMutationResult` ("Ejecutar ahora": dispara YA, fuera de horario; 409 si ya hay un refresh en curso, 503 si el scheduler no corre) |
 
-`GET /health` devuelve `{ status }`.
+`GET /health` devuelve `{ status, scheduler }`, donde `scheduler` reporta `running`,
+`lastTickAt` y `healthy` (False si el hilo no corre o el último tick quedó viejo). Útil
+para monitoreo: si `scheduler.healthy` deja de ser `true`, los refreshes no se están
+disparando aunque la API siga viva.
 
 ## Despliegue en el VPS (Hetzner / Linux)
 
