@@ -116,6 +116,12 @@ class ScheduleStore:
         with self._lock:
             return [s.model_copy(deep=True) for s in self._schedules if s.enabled]
 
+    def all_schedules(self) -> list[Schedule]:
+        """Copia de TODOS los schedules (habilitados o no). La usa el scheduler para
+        reconciliar refreshes que quedaron InProgress tras un reinicio del proceso."""
+        with self._lock:
+            return [s.model_copy(deep=True) for s in self._schedules]
+
     def set_last_run(self, schedule_id: str, last_run: LastRun) -> bool:
         """Registra el resultado del último run. Devuelve False si el schedule ya no
         existe (pudo borrarse entre que el scheduler lo leyó y lo intentó actualizar)."""

@@ -223,3 +223,48 @@ def test_not_refired_while_pending(store, settings):
     # A las 08:00 volvería a vencer, pero hay un refresh en vuelo -> no se re-dispara.
     assert sched.tick(at(8, 0)) == []
     assert ex.start_calls == [sch.id]
+
+
+# --- Robustez: reconciliación de huérfanos y schedule corrupto ---
+
+
+def test_reconcile_orphans_marks_inprogress_failed(store, settings):
+    # Un refresh quedó InProgress en disco (el proceso murió en vuelo). Al arrancar,
+    # reconcile lo marca Failed (no se puede pollear: el token se perdió).
+    orphan = _make_daily(store, time="06:00")
+    store.set_last_run(orphan.id, LastRun(status="InProgress", timestamp="2026-06-05T06:00:00-03:00"))
+    # Otro con estado terminal no se toca.
+    done = store.create(
+        CreateScheduleInput(
+            dataset_id="ds-calidad", workspace_id="ws-ops", tables=["Defectos"],
+            frequency=DailyFrequency(kind="daily", time="06:00"),
+            refresh_type="full", enabled=True,
+        )
+    ).affected
+    store.set_last_run(done.id, LastRun(status="Completed", timestamp="2026-06-05T06:00:00-03:00"))
+
+    sched = Scheduler(store, FakeExecutor(), settings)
+    assert sched.reconcile_orphans(at(7, 0)) == [orphan.id]
+    by_id = {s.id: s for s in store.all_schedules()}
+    assert by_id[orphan.id].last_run.status == "Failed"
+    assert by_id[done.id].last_run.status == "Completed"  # intacto
+
+
+def test_due_schedules_skips_corrupt_schedule(store, settings):
+    # Un schedule con frecuencia corrupta (p. ej. JSON editado a mano) no debe frenar
+    # el tick: se saltea y los demás corren igual.
+    good = _make_daily(store, time="06:00")
+    bad = store.create(
+        CreateScheduleInput(
+            dataset_id="ds-calidad", workspace_id="ws-ops", tables=["Defectos"],
+            frequency=DailyFrequency(kind="daily", time="07:00"),
+            refresh_type="full", enabled=True,
+        )
+    ).affected
+    # Corromper la frecuencia por fuera de la validación (sin validate_assignment).
+    next(s for s in store._schedules if s.id == bad.id).frequency.time = "99:99"
+
+    sched = Scheduler(store, FakeExecutor(), settings)
+    sched.tick(at(5, 0))            # ancla ambos
+    fired = sched.tick(at(8, 0))    # ambos vencerían; el corrupto se saltea sin romper
+    assert good.id in fired and bad.id not in fired

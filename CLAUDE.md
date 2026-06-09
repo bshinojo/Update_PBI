@@ -284,6 +284,10 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
   tiene un refresh en vuelo, difiere el disparo de otro schedule del mismo dataset al próximo tick
   (Power BI no permite refreshes concurrentes sobre el mismo dataset). Un hilo daemon llama
   `tick()` cada `PBI_SCHEDULER_TICK_SECONDS`.
+  - **Resiliencia** (paquete "robustez"): `due_schedules` aísla cada schedule en try/except, así
+    una frecuencia corrupta (JSON editado a mano) no mata el tick entero. Y al arrancar,
+    `reconcile_orphans()` marca `Failed` los `InProgress` que quedaron en disco tras un reinicio
+    (su token de polling se perdió; evita el spinner eterno en la UI).
 - **`backend/app/executor.py`**: protocolo de dos fases `start(schedule)->token|None` y
   `poll(schedule,token)->RunStatus` (el refresh real es asíncrono). `PowerBIRefreshExecutor`:
   `refresh_dataset()` (devuelve `refreshId`) + `get_refresh_status()`; `_map_status` traduce el
@@ -300,7 +304,12 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
   frecuencias y bordes), scheduler con reloj controlado + executor falso (disparo, polling
   InProgress→Completed/Failed, timeout, no re-disparo en vuelo, serialización por dataset), executor
   (mapeo de estados + delegación al cliente con cliente falso), y los 8 endpoints. Corren **sin
-  credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 33 tests, todo verde.
+  credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 48 tests, todo verde.
+- **Validación de inputs (paquete "robustez")**: los modelos de input (`models.py`) validan rangos
+  además de la UI (defensa en profundidad, porque la API no tiene auth): `time` "HH:mm",
+  `startHour/endHour` 0–23 (y desde≤hasta), `daysOfWeek` 0–6, `dayOfMonth` 1–28 o -1, y ≥1 tabla
+  (`CreateScheduleInput`/`UpdateScheduleInput`). `POST /schedules` además **rechaza con 400** las
+  tablas que no existan en el modelo (si las tablas no se pueden leer por RLS, no bloquea).
 
 > ✅ **Lecturas y refresh verificados contra Power BI real (2026-06-06)**: auth client-credentials,
 > `/workspaces`, `/datasets`, `/tables` (XMLA/DAX `INFO.VIEW.TABLES()`) y el enhanced refresh

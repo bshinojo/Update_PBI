@@ -60,7 +60,26 @@ def list_schedules(dataset_id: str, store: ScheduleStore = Depends(get_store)):
     response_model=ScheduleMutationResult,
     response_model_exclude_none=True,
 )
-def create_schedule(body: CreateScheduleInput, store: ScheduleStore = Depends(get_store)):
+def create_schedule(
+    body: CreateScheduleInput,
+    store: ScheduleStore = Depends(get_store),
+    ds: DataSource = Depends(get_datasource),
+):
+    # Validamos que las tablas existan en el modelo: si no, el schedule se crearía
+    # igual pero después el refresh fallaría siempre (Power BI rechaza tablas que no
+    # existen). Si las tablas no se pueden leer (RLS), no bloqueamos: no hay forma
+    # de verificar y el usuario las eligió desde la UI.
+    try:
+        known = {t.name for t in ds.list_tables(body.dataset_id)}
+    except TablesUnavailableError:
+        known = None
+    if known is not None:
+        missing = [t for t in body.tables if t not in known]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Estas tablas no existen en el modelo: {', '.join(missing)}.",
+            )
     return store.create(body)
 
 

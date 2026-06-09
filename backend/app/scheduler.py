@@ -73,10 +73,38 @@ class Scheduler:
     def due_schedules(self, now: datetime) -> list[Schedule]:
         out: list[Schedule] = []
         for sch in self._store.all_enabled_schedules():
-            ref = self._reference(sch, now)
-            if next_run_at(sch.frequency, ref) <= now:
-                out.append(sch)
+            # Aislamos cada schedule: si uno tiene una frecuencia corrupta (p. ej.
+            # persistida a mano o de una versión vieja sin validación) y next_run_at
+            # explota, lo salteamos y seguimos con el resto, en vez de que el error
+            # mate el tick entero y deje de correr TODOS los schedules.
+            try:
+                ref = self._reference(sch, now)
+                if next_run_at(sch.frequency, ref) <= now:
+                    out.append(sch)
+            except Exception:  # noqa: BLE001 - un schedule roto no debe frenar a los demás
+                logger.exception("No se pudo calcular la próxima corrida del schedule %s", sch.id)
         return out
+
+    def reconcile_orphans(self, now: datetime | None = None) -> list[str]:
+        """Al arrancar, resuelve los refreshes que quedaron 'InProgress' en disco tras
+        un reinicio del proceso. El dict de pendientes vive en memoria, así que un
+        refresh que estaba en vuelo cuando el proceso murió no se puede pollear: su
+        token se perdió. En vez de dejarlo InProgress para siempre (spinner eterno en
+        la UI), lo marcamos Failed. Devuelve los ids reconciliados."""
+        now = now or self.now()
+        ts = now.isoformat(timespec="seconds")
+        reconciled: list[str] = []
+        for sch in self._store.all_schedules():
+            if sch.id in self._pending:
+                continue  # tiene un pendiente vivo en esta instancia (no es huérfano)
+            if sch.last_run is not None and sch.last_run.status == "InProgress":
+                self._store.set_last_run(sch.id, LastRun(status="Failed", timestamp=ts))
+                self._record_run(sch, "Failed", refresh_id=None, started_at=ts, finished_at=ts)
+                reconciled.append(sch.id)
+                logger.warning(
+                    "Schedule %s quedó InProgress tras un reinicio -> marcado Failed", sch.id,
+                )
+        return reconciled
 
     def tick(self, now: datetime | None = None) -> list[str]:
         """Dispara los schedules vencidos a `now` y pollea los refreshes en vuelo.
@@ -184,6 +212,9 @@ class Scheduler:
     def start(self) -> None:
         if self._thread is not None:
             return
+        # Antes de arrancar el loop: limpiar refreshes que quedaron InProgress de una
+        # corrida anterior del proceso (no se pueden pollear, su token se perdió).
+        self.reconcile_orphans()
         self._stop.clear()
         self._thread = threading.Thread(target=self._loop, name="pbi-scheduler", daemon=True)
         self._thread.start()

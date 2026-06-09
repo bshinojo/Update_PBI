@@ -88,6 +88,50 @@ def test_404_and_422(client):
     assert bad.status_code == 422
 
 
+def _create_body(**freq):
+    return {
+        "datasetId": "ds-ventas-retail", "workspaceId": "ws-ventas",
+        "tables": ["Ventas"], "refreshType": "full", "enabled": True,
+        "frequency": {"kind": "daily", "time": "06:00", **freq},
+    }
+
+
+def test_validation_rejects_bad_frequency_fields(client):
+    # Horario malformado.
+    assert client.post("/schedules", json=_create_body(time="25:99")).status_code == 422
+    assert client.post("/schedules", json=_create_body(time="6:00")).status_code == 422
+    # Día JS fuera de rango (0..6).
+    assert client.post("/schedules", json=_create_body(daysOfWeek=[7])).status_code == 422
+    # Franja horaria fuera de rango / invertida (hourly).
+    bad_hour = {
+        "datasetId": "ds-ventas-retail", "workspaceId": "ws-ventas", "tables": ["Ventas"],
+        "refreshType": "full", "enabled": True,
+        "frequency": {"kind": "hourly", "everyHours": 1, "startHour": 18, "endHour": 9},
+    }
+    assert client.post("/schedules", json=bad_hour).status_code == 422
+    # Día del mes inválido.
+    bad_dom = {
+        "datasetId": "ds-ventas-retail", "workspaceId": "ws-ventas", "tables": ["Ventas"],
+        "refreshType": "full", "enabled": True,
+        "frequency": {"kind": "monthly", "dayOfMonth": 40, "time": "06:00"},
+    }
+    assert client.post("/schedules", json=bad_dom).status_code == 422
+
+
+def test_validation_rejects_empty_tables(client):
+    # Crear sin tablas -> 422.
+    assert client.post("/schedules", json=_create_body() | {"tables": []}).status_code == 422
+    # PATCH a 0 tablas -> 422 (dejaría el schedule inválido).
+    assert client.patch("/schedules/sch-1", json={"tables": []}).status_code == 422
+
+
+def test_create_rejects_unknown_tables(client):
+    # Tabla que no existe en el modelo -> 400 (si no, el refresh fallaría siempre).
+    r = client.post("/schedules", json=_create_body() | {"tables": ["NoExisteEstaTabla"]})
+    assert r.status_code == 400
+    assert "NoExisteEstaTabla" in r.json()["detail"]
+
+
 def test_tables_read_failure_is_502_with_detail(tmp_path):
     # Una lectura FALLIDA de tablas (p. ej. modelo con RLS que Power BI rechaza) NO
     # debe verse como "el modelo no tiene tablas": el endpoint responde 502 con un
