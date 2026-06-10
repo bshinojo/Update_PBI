@@ -58,6 +58,9 @@ imports, que es lo que más rompe al pasar de Windows a Linux).
 
 ## Servir el build en Linux con nginx (VPS Hetzner)
 
+> **Guía completa de deploy (server desde cero, hardening, systemd, nginx y VPN
+> WireGuard): ver [`DEPLOY.md`](DEPLOY.md).** Lo de abajo es el resumen de la parte nginx.
+
 1. Copiá el contenido de `dist/` al servidor, por ejemplo a
    `/var/www/pbi-refresh-scheduler`.
 2. Usá una config como la de `nginx.example.conf`. Lo importante es el

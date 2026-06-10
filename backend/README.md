@@ -69,19 +69,23 @@ disparando aunque la API siga viva. **El frontend lo consume**: el header muestr
 
 ## Despliegue en el VPS (Hetzner / Linux)
 
+> **Guía paso a paso completa (crear el server, SSH, build, WireGuard): ver
+> [`DEPLOY.md`](../DEPLOY.md) en la raíz del repo.** Resumen:
+
 1. **Servicio systemd** (`/etc/systemd/system/pbi-api.service`):
 
    ```ini
    [Unit]
    Description=PBI Refresh Scheduler API
-   After=network.target
+   After=network-online.target
+   Wants=network-online.target
 
    [Service]
+   User=pbi
    WorkingDirectory=/opt/pbi/backend
-   EnvironmentFile=/opt/pbi/backend/.env
-   ExecStart=/opt/pbi/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+   ExecStart=/opt/pbi/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
    Restart=always
-   User=www-data
+   RestartSec=3
 
    [Install]
    WantedBy=multi-user.target

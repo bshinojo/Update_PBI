@@ -266,6 +266,10 @@ un backend real con latencia.
 - **Tooling**: ESLint (flat config, reglas de hooks de React) con `npm run lint`; **CI** en
   `.github/workflows/ci.yml` corre en cada push/PR a `main` el frontend (lint + typecheck + test +
   build) y el backend (pytest). Suite total: **72 pytest + 30 vitest**, todo verde sin credenciales.
+- **Guía de deploy en `DEPLOY.md`** (pedida por el usuario 2026-06-10): VPS Hetzner desde cero —
+  server + hardening SSH/ufw, stack, clone/build, `.env` y datos en `/var/lib/pbi`, systemd
+  (`pbi-api`, 1 worker), nginx, verificación end-to-end y **WireGuard** como control de acceso
+  (la app no tiene login: la VPN es la autenticación; nginx `allow 10.8.0.0/24` + cerrar 80/443).
 
 ---
 
