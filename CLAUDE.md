@@ -270,6 +270,9 @@ un backend real con latencia.
   server + hardening SSH/ufw, stack, clone/build, `.env` y datos en `/var/lib/pbi`, systemd
   (`pbi-api`, 1 worker), nginx, verificación end-to-end y **WireGuard** como control de acceso
   (la app no tiene login: la VPN es la autenticación; nginx `allow 10.8.0.0/24` + cerrar 80/443).
+  Incluye **checklist de seguridad** (§10): `PBI_CORS_ORIGINS` restrictivo en prod (el default es
+  `*`), alcance mínimo del SP + admin APIs a un security group, rotación del secret, 2FA Hetzner,
+  revocación de peers, y la limitación conocida de "sin identidad por usuario".
 
 ---
 

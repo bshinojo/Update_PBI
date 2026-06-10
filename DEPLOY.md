@@ -128,6 +128,10 @@ PBI_CLIENT_ID=...
 PBI_CLIENT_SECRET=...        # el VALUE del secret, no el "Secret ID" (un GUID falla con AADSTS7000215)
 PBI_DB_PATH=/var/lib/pbi/schedules.json
 PBI_RUNS_LOG_PATH=/var/lib/pbi/runs.jsonl
+# CORS restrictivo: nginx sirve front y API en el MISMO origen, así que no hace
+# falta abrirlo. Con el default "*" (y una API sin auth), una página maliciosa
+# visitada por un consultor CON la VPN conectada podría disparar requests.
+PBI_CORS_ORIGINS=http://10.8.0.1
 ```
 
 ```bash
@@ -331,3 +335,30 @@ header). Un cron simple que alerte:
 
 **Zona horaria:** dejá el server en UTC. Los horarios de la app son siempre ART por
 `PBI_TZ_OFFSET_HOURS=-3` (config, no reloj del sistema), y Argentina no tiene DST.
+
+## 10. Checklist de seguridad
+
+El modelo de amenaza: herramienta interna sin login (la VPN ES la autenticación), cuyo
+peor abuso vía app es manejar programaciones/metadata. **El verdadero tesoro es el
+`.env` del VPS** (el secret del service principal puede más que la app), así que:
+
+- [ ] **CORS restrictivo** en producción: `PBI_CORS_ORIGINS=http://10.8.0.1` (ver §5).
+      El default `*` + API sin auth permitiría requests cross-site desde el navegador
+      de un consultor conectado a la VPN.
+- [ ] **Alcance mínimo del service principal**: dale acceso SOLO a los workspaces que
+      necesita, y restringí el tenant setting *"service principals can use read-only
+      admin APIs"* (necesario para el fallback Scanner/RLS) a un **security group**
+      que contenga únicamente este SP.
+- [ ] **Rotación del secret agendada**: los secrets de Entra ID expiran (máx. 24 meses).
+      Rotar = editar `.env` + `systemctl restart pbi-api`. Poné un recordatorio.
+- [ ] **2FA en la cuenta de Hetzner**: la consola web equivale a acceso físico al server.
+- [ ] **80/443 cerrados al público** una vez probada la VPN (§8) — al público solo
+      quedan SSH y el UDP de WireGuard (que no responde a paquetes no autenticados).
+- [ ] **Revocación de peers**: si una laptop con llave WireGuard se pierde, borrá su
+      `[Peer]` de `wg0.conf` y `sudo systemctl restart wg-quick@wg0`. Llevá la lista
+      de qué IP (10.8.0.X) es de quién (los comentarios en el conf alcanzan).
+- [ ] **Sin identidad por usuario** (limitación conocida): todo el que está en la VPN
+      es admin de la herramienta y no queda registro de QUIÉN tocó qué (el historial
+      registra qué corrió, no quién clickeó). Aceptable para un equipo chico de
+      confianza; si el equipo crece o esto se expone públicamente, implementar la
+      autenticación real (CLAUDE.md §6.C) pasa a ser obligatorio.
