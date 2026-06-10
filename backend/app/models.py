@@ -76,6 +76,9 @@ class TableInfo(CamelModel):
 class LastRun(CamelModel):
     status: RunStatus
     timestamp: str  # ISO 8601
+    # Motivo del fallo (texto corto), solo cuando status="Failed". Permite que la UI
+    # muestre POR QUÉ falló sin que el usuario tenga que entrar a los logs del VPS.
+    error: Optional[str] = None
 
 
 # --- Frecuencia: unión discriminada por `kind` ---
@@ -142,6 +145,10 @@ class Schedule(CamelModel):
     refresh_type: RefreshType
     enabled: bool
     last_run: Optional[LastRun] = None
+    # DERIVADO al responder (routes._with_next_run): próxima corrida en ISO ART, o
+    # None si está pausado. NO se persiste (el store lo deja en None al guardar) ni
+    # lo manda el cliente: se recalcula con next_run_at() en cada respuesta.
+    next_run_at: Optional[str] = None
 
 
 # --- Inputs de mutación (el cliente no manda id/time/lastRun) ---
@@ -168,6 +175,23 @@ class UpdateScheduleInput(CamelModel):
 
 class SetEnabledInput(CamelModel):
     enabled: bool
+
+
+class RunRecord(CamelModel):
+    """Una corrida TERMINADA del historial (una línea de runs.jsonl). Las líneas ya
+    se escriben con claves camelCase (ver scheduler._record_run), así que el alias
+    generator las parsea directo."""
+
+    schedule_id: str
+    dataset_id: str
+    workspace_id: str
+    tables: list[str]
+    refresh_type: str
+    refresh_id: Optional[str] = None
+    status: RunStatus
+    started_at: str  # ISO 8601
+    finished_at: str  # ISO 8601
+    error: Optional[str] = None
 
 
 class ScheduleMutationResult(CamelModel):

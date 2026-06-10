@@ -29,6 +29,29 @@ def _is_real_table(name: str | None) -> bool:
     )
 
 
+_ERROR_TEXT_MAX = 300
+
+
+def _extract_refresh_error(data: dict) -> str | None:
+    """Motivo del fallo de un refresh, si la respuesta lo trae. Enhanced refresh
+    informa `messages: [{message, type}]`; el historial clásico, `serviceExceptionJson`
+    (un JSON serializado con errorCode/errorDescription). Devuelve un texto corto."""
+    messages = data.get("messages")
+    if isinstance(messages, list):
+        errors = [
+            str(m.get("message"))
+            for m in messages
+            if isinstance(m, dict) and m.get("message")
+            and str(m.get("type", "")).lower() == "error"
+        ]
+        if errors:
+            return ("; ".join(errors))[:_ERROR_TEXT_MAX]
+    exc = data.get("serviceExceptionJson")
+    if exc:
+        return str(exc)[:_ERROR_TEXT_MAX]
+    return None
+
+
 class PowerBIError(Exception):
     """Falla al hablar con Power BI (auth o REST). `status_code`/`code` quedan
     disponibles (cuando la falla es un HTTP de la REST API) para que las capas de
@@ -295,6 +318,21 @@ class PowerBIClient:
         """Estado crudo de un refresh ('Unknown' = en curso para enhanced refresh,
         'Completed', 'Failed', 'Cancelled', 'Disabled'). El mapeo a nuestro RunStatus
         lo hace executor._map_status."""
+        status, _error = self.get_refresh_detail(dataset_id, refresh_id, group_id)
+        return status
+
+    def get_refresh_detail(
+        self,
+        dataset_id: str,
+        refresh_id: str,
+        group_id: str | None = None,
+    ) -> tuple[str, str | None]:
+        """Estado crudo + motivo del fallo (si Power BI lo informa). El motivo sale de
+        `messages` (enhanced refresh: lista de {message, type}) o, en su defecto, de
+        `serviceExceptionJson` (historial clásico). Se trunca para guardarlo en
+        lastRun.error sin arrastrar payloads enormes."""
         prefix = f"/groups/{group_id}" if group_id else ""
         data = self._request("GET", f"{prefix}/datasets/{dataset_id}/refreshes/{refresh_id}")
-        return (data or {}).get("status", "Unknown")
+        data = data or {}
+        status = data.get("status", "Unknown")
+        return status, _extract_refresh_error(data)

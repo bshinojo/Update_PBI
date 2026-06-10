@@ -31,7 +31,7 @@ window.FAQ = function FAQ() {
           color: '#6B7585', marginBottom: 16,
         }}>Preguntas Frecuentes</div>
         <h2 style={{
-          fontFamily: "'Cormorant Garamond', serif",
+          fontFamily: "'EB Garamond', serif",
           fontWeight: 500, fontSize: 44, lineHeight: 1.1,
           color: '#0E2543', margin: '0 0 48px',
         }}>Lo que solemos escuchar</h2>
@@ -52,7 +52,7 @@ window.FAQ = function FAQ() {
                   lineHeight: 1.4,
                 }}>{f.q}</span>
                 <span style={{
-                  fontFamily: "'Cormorant Garamond', serif",
+                  fontFamily: "'EB Garamond', serif",
                   fontSize: 28, color: '#0E2543',
                   flexShrink: 0, lineHeight: 1,
                   transform: open === i ? 'rotate(45deg)' : 'rotate(0)',

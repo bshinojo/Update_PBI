@@ -20,6 +20,14 @@ from .store import ScheduleStore
 
 logger = logging.getLogger("pbi.scheduler")
 
+_ERROR_TEXT_MAX = 300
+
+
+def _short_error(e: Exception) -> str:
+    """Texto corto y legible de una excepción, para lastRun.error / el historial."""
+    msg = str(e).strip() or type(e).__name__
+    return msg[:_ERROR_TEXT_MAX]
+
 
 class AlreadyRunningError(Exception):
     """No se puede disparar ahora: ya hay un refresh en curso (del mismo schedule o
@@ -124,12 +132,18 @@ class Scheduler:
         now = now or self.now()
         ts = now.isoformat(timespec="seconds")
         reconciled: list[str] = []
+        reason = "El servidor se reinició mientras la actualización estaba en curso."
         for sch in self._store.all_schedules():
             if sch.id in self._pending:
                 continue  # tiene un pendiente vivo en esta instancia (no es huérfano)
             if sch.last_run is not None and sch.last_run.status == "InProgress":
-                self._store.set_last_run(sch.id, LastRun(status="Failed", timestamp=ts))
-                self._record_run(sch, "Failed", refresh_id=None, started_at=ts, finished_at=ts)
+                self._store.set_last_run(
+                    sch.id, LastRun(status="Failed", timestamp=ts, error=reason)
+                )
+                self._record_run(
+                    sch, "Failed", refresh_id=None, started_at=ts, finished_at=ts,
+                    error=reason,
+                )
                 reconciled.append(sch.id)
                 logger.warning(
                     "Schedule %s quedó InProgress tras un reinicio -> marcado Failed", sch.id,
@@ -198,10 +212,15 @@ class Scheduler:
         self._store.set_last_run(sch.id, LastRun(status="InProgress", timestamp=ts))
         try:
             token = self._executor.start(sch)
-        except Exception:  # noqa: BLE001 - una falla al disparar se registra como Failed
+        except Exception as e:  # noqa: BLE001 - una falla al disparar se registra como Failed
             logger.exception("Falló el disparo del schedule %s", sch.id)
-            self._store.set_last_run(sch.id, LastRun(status="Failed", timestamp=ts))
-            self._record_run(sch, "Failed", refresh_id=None, started_at=ts, finished_at=ts)
+            error = _short_error(e)
+            self._store.set_last_run(
+                sch.id, LastRun(status="Failed", timestamp=ts, error=error)
+            )
+            self._record_run(
+                sch, "Failed", refresh_id=None, started_at=ts, finished_at=ts, error=error,
+            )
             return
         if token is None:
             # Resultado inmediato (Power BI no informó un id para pollear).
@@ -217,31 +236,40 @@ class Scheduler:
         """Consulta el estado de cada refresh en vuelo y resuelve InProgress ->
         Completed/Failed. Aplica el timeout y descarta los de schedules borrados."""
         for sid, pend in list(self._pending.items()):
+            error: str | None = None
             try:
-                status = self._executor.poll(pend.schedule, pend.token)
-            except Exception:  # noqa: BLE001 - falla del polling -> Failed
+                status, error = self._executor.poll(pend.schedule, pend.token)
+            except Exception as e:  # noqa: BLE001 - falla del polling -> Failed
                 logger.exception("Falló el polling del schedule %s", sid)
                 status = "Failed"
+                error = _short_error(e)
             if status == "InProgress":
                 if now - pend.started_at <= self._poll_timeout:
                     continue  # sigue corriendo, esperamos al próximo tick
                 logger.warning("Refresh del schedule %s excedió el timeout -> Failed", sid)
                 status = "Failed"
+                minutes = int(self._poll_timeout.total_seconds() // 60)
+                error = f"La actualización superó el tiempo máximo de espera ({minutes} min)."
+            if status != "Failed":
+                error = None
             # Estado terminal: registramos y dejamos de pollear. set_last_run devuelve
             # False si el schedule se borró mientras corría (lo descartamos igual).
             finished = now.isoformat(timespec="seconds")
-            ok = self._store.set_last_run(sid, LastRun(status=status, timestamp=finished))
+            ok = self._store.set_last_run(
+                sid, LastRun(status=status, timestamp=finished, error=error)
+            )
             self._pending.pop(sid, None)
             self._record_run(
                 pend.schedule, status, refresh_id=pend.token,
                 started_at=pend.started_at.isoformat(timespec="seconds"), finished_at=finished,
+                error=error,
             )
             if ok:
                 logger.info("Schedule %s refresh -> %s", sid, status)
 
     def _record_run(
         self, sch: Schedule, status: str, refresh_id: str | None,
-        started_at: str, finished_at: str,
+        started_at: str, finished_at: str, error: str | None = None,
     ) -> None:
         """Anexa una línea al historial de corridas (audit log). El RunLog está
         blindado: si falla escribir, no propaga (no corta el scheduler)."""
@@ -255,6 +283,7 @@ class Scheduler:
             "status": status,
             "startedAt": started_at,
             "finishedAt": finished_at,
+            "error": error,
         })
 
     def _gc_anchors(self) -> None:

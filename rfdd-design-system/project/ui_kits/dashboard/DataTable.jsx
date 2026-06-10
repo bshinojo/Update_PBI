@@ -17,7 +17,7 @@ window.DataTable = function DataTable() {
           letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B7585',
         }}>Top Cuentas</div>
         <div style={{
-          fontFamily: "'Cormorant Garamond', serif", fontWeight: 500,
+          fontFamily: "'EB Garamond', serif", fontWeight: 500,
           fontSize: 22, color: '#0E2543',
         }}>Performance por cliente · YTD</div>
       </div>

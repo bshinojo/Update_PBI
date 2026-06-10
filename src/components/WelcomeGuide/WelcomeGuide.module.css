@@ -9,24 +9,23 @@
   background: var(--color-bg);
 }
 
-/* Tarjeta editorial RFDD: blanco, hairline, sombra navy sutil. */
+/* Tarjeta editorial RFDD: blanco, hairline, sombra navy sutil. Tamaños REALES
+   (antes se declaraba más grande y se achicaba con transform: scale(0.75); el
+   hack dejaba una caja fantasma reservando el tamaño sin escalar). */
 .card {
   width: 100%;
-  max-width: 820px;
+  max-width: 640px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-2);
-  padding: 48px;
-  /* En "--GENERAL--" el bloque se ve más chico (x0.75) y corrido hacia arriba-izquierda. */
-  transform: translateY(-2%) scale(0.75);
-  transform-origin: top left;
+  padding: 36px;
   animation: cardIn 0.5s ease both;
 }
 
 .eyebrow {
   margin: 0 0 var(--space-3);
-  font-size: 18px;
+  font-size: var(--fs-md);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -37,7 +36,7 @@
   margin: 0 0 var(--space-4);
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 50px;
+  font-size: 38px;
   line-height: 1.1;
   color: var(--color-text);
 }
@@ -45,7 +44,7 @@
 .lead {
   margin: 0 0 var(--space-6);
   font-family: var(--font-serif);
-  font-size: 30px;
+  font-size: 22px;
   line-height: 1.35;
   color: var(--color-muted);
 }
@@ -79,13 +78,13 @@
 .num {
   position: relative;
   flex: none;
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: var(--color-accent);
   color: var(--color-on-accent);
   font-weight: 700;
-  font-size: 24px;
+  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -105,13 +104,13 @@
 
 .stepTitle {
   font-weight: 600;
-  font-size: 28px;
+  font-size: 21px;
   line-height: 1.2;
   color: var(--color-text);
 }
 .stepText {
   margin-top: var(--space-1);
-  font-size: 22px;
+  font-size: var(--fs-lg);
   line-height: 1.4;
   color: var(--color-muted);
 }
@@ -119,8 +118,8 @@
 /* Ícono gráfico de cada paso, en disco sky. */
 .glyphWrap {
   flex: none;
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: var(--color-accent-weak);
   color: var(--color-accent);
@@ -129,15 +128,15 @@
   justify-content: center;
 }
 .glyph {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
 }
 
 .note {
   margin: var(--space-6) 0 0;
   padding-top: var(--space-5);
   border-top: 1px solid var(--color-border);
-  font-size: 20px;
+  font-size: 15px;
   line-height: 1.4;
   color: var(--color-faint);
 }
@@ -148,11 +147,11 @@
 @keyframes cardIn {
   from {
     opacity: 0;
-    transform: translateY(-2%) translateX(-2%) scale(0.72);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(-2%) scale(0.75);
+    transform: none;
   }
 }
 

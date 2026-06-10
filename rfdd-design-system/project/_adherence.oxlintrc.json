@@ -35,8 +35,8 @@
         "message": "Raw px value — use a design-system spacing token via var()."
       },
       {
-        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Cormorant Garamond|Source Serif 4|Inter))/i]",
-        "message": "Font not provided by the design system. Available: Cormorant Garamond, Source Serif 4, Inter."
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:EB Garamond|Source Serif 4|Inter))/i]",
+        "message": "Font not provided by the design system. Available: EB Garamond, Source Serif 4, Inter."
       }
     ]
   },
@@ -221,7 +221,7 @@
       "--dur-slow": "other"
     },
     "fontFamilies": [
-      "Cormorant Garamond",
+      "EB Garamond",
       "Inter",
       "Source Serif 4"
     ]

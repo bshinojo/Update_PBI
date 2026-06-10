@@ -52,8 +52,12 @@ export function FrequencyFields({
     case 'hourly':
       return (
         <>
-          <Field label="Cada cuánto">
+          <div className={styles.field}>
+            <label className={styles.fieldLabel} htmlFor="hourly-every">
+              Cada cuánto
+            </label>
             <select
+              id="hourly-every"
               value={state.hourlyEvery}
               onChange={(e) => patch({ hourlyEvery: Number(e.target.value) })}
             >
@@ -63,7 +67,14 @@ export function FrequencyFields({
                 </option>
               ))}
             </select>
-          </Field>
+            {state.hourlyEvery < 60 ? (
+              <span className={styles.fieldHintWarn}>
+                Intervalo corto con actualización completa: si una corrida sigue en
+                curso cuando vence la siguiente, la siguiente se pospone hasta que
+                termine (no se encima).
+              </span>
+            ) : null}
+          </div>
 
           <div className={styles.field}>
             <span className={styles.fieldLabel}>Franja horaria</span>

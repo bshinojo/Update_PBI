@@ -31,7 +31,7 @@ window.Donut = function Donut() {
             return <path key={i} d={d} fill={s.color}/>;
           })}
           <text x={cx} y={cy - 4} textAnchor="middle"
-                fontFamily="'Cormorant Garamond', serif" fontWeight="500" fontSize="22" fill="#0E2543">$184M</text>
+                fontFamily="'EB Garamond', serif" fontWeight="500" fontSize="22" fill="#0E2543">$184M</text>
           <text x={cx} y={cy + 14} textAnchor="middle"
                 fontFamily="'Inter'" fontSize="10" letterSpacing="0.14em" fill="#6B7585">YTD</text>
         </svg>

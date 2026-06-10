@@ -5,11 +5,12 @@
 #   start(schedule) -> token | None
 #       Dispara el refresh. Devuelve un token para pollear, o None si el resultado
 #       ya es final (éxito inmediato: modo seed instantáneo, o Power BI sin id).
-#   poll(schedule, token) -> RunStatus
-#       Estado actual: "InProgress" (seguir esperando) | "Completed" | "Failed".
+#   poll(schedule, token) -> PollResult
+#       Estado actual ("InProgress" | "Completed" | "Failed") + motivo del fallo
+#       (texto corto) cuando Power BI lo informa.
 #
 import logging
-from typing import Optional, Protocol
+from typing import NamedTuple, Optional, Protocol
 
 from .config import Settings
 from .models import RunStatus, Schedule
@@ -17,9 +18,15 @@ from .models import RunStatus, Schedule
 logger = logging.getLogger("pbi.executor")
 
 
+class PollResult(NamedTuple):
+    status: RunStatus
+    # Motivo del fallo informado por Power BI (solo tiene sentido con "Failed").
+    error: Optional[str] = None
+
+
 class RefreshExecutor(Protocol):
     def start(self, schedule: Schedule) -> Optional[str]: ...
-    def poll(self, schedule: Schedule, token: str) -> RunStatus: ...
+    def poll(self, schedule: Schedule, token: str) -> PollResult: ...
 
 
 def _map_status(raw: str) -> RunStatus:
@@ -45,13 +52,14 @@ class PowerBIRefreshExecutor:
             group_id=schedule.workspace_id,
         )
 
-    def poll(self, schedule: Schedule, token: str) -> RunStatus:
-        raw = self._client.get_refresh_status(
+    def poll(self, schedule: Schedule, token: str) -> PollResult:
+        raw, error = self._client.get_refresh_detail(
             dataset_id=schedule.dataset_id,
             refresh_id=token,
             group_id=schedule.workspace_id,
         )
-        return _map_status(raw)
+        status = _map_status(raw)
+        return PollResult(status=status, error=error if status == "Failed" else None)
 
 
 def build_executor(settings: Settings) -> RefreshExecutor:

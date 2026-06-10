@@ -53,7 +53,12 @@ class ScheduleStore:
         return []
 
     def _persist(self, schedules: list[Schedule]) -> None:
-        data = [s.model_dump(by_alias=True, exclude_none=True) for s in schedules]
+        # next_run_at es DERIVADO (lo calculan las rutas al responder): nunca se
+        # persiste, así el JSON en disco no queda con horarios viejos.
+        data = [
+            s.model_dump(by_alias=True, exclude_none=True, exclude={"next_run_at"})
+            for s in schedules
+        ]
         tmp = self._path.with_suffix(self._path.suffix + ".tmp")
         tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(self._path)  # escritura atómica

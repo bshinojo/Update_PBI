@@ -100,6 +100,42 @@ def test_scanner_disabled_raises_clear_error():
         c.list_tables("ds-rls")
 
 
+def test_get_refresh_detail_extracts_error_messages():
+    # Enhanced refresh fallido: el motivo sale de `messages` (solo los type=Error).
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={
+            "status": "Failed",
+            "messages": [
+                {"message": "aviso benigno", "type": "Warning"},
+                {"message": "La credencial expiró", "type": "Error"},
+            ],
+        })
+
+    c = _client(handler)
+    status, error = c.get_refresh_detail("ds-1", "r1", group_id="ws-1")
+    assert status == "Failed" and error == "La credencial expiró"
+
+
+def test_get_refresh_detail_falls_back_to_service_exception():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={
+            "status": "Failed",
+            "serviceExceptionJson": '{"errorCode":"ModelRefreshFailed"}',
+        })
+
+    c = _client(handler)
+    status, error = c.get_refresh_detail("ds-1", "r1")
+    assert status == "Failed" and "ModelRefreshFailed" in error
+
+
+def test_get_refresh_detail_no_error_when_clean():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"status": "Completed"})
+
+    c = _client(handler)
+    assert c.get_refresh_detail("ds-1", "r1") == ("Completed", None)
+
+
 def test_scanner_unavailable_raises_clear_error():
     # getInfo devuelve 401 (el tenant no habilitó las admin APIs para el SP) -> error claro.
     def handler(request: httpx.Request) -> httpx.Response:

@@ -4,6 +4,8 @@
 import type {
   CreateScheduleInput,
   Dataset,
+  HealthStatus,
+  RunRecord,
   Schedule,
   ScheduleMutationResult,
   TableInfo,
@@ -16,12 +18,16 @@ export interface ScheduleApi {
   listDatasets(workspaceId: string): Promise<Dataset[]>
   listTables(datasetId: string): Promise<TableInfo[]>
   listSchedules(datasetId: string): Promise<Schedule[]>
+  /** Historial de corridas terminadas del schedule (la más reciente primero). */
+  listRuns(scheduleId: string, limit?: number): Promise<RunRecord[]>
+  /** Salud del backend + su scheduler (para el indicador del header). */
+  getHealth(): Promise<HealthStatus>
 
   createSchedule(input: CreateScheduleInput): Promise<ScheduleMutationResult>
   updateSchedule(id: string, patch: UpdateScheduleInput): Promise<ScheduleMutationResult>
   setScheduleEnabled(id: string, enabled: boolean): Promise<ScheduleMutationResult>
   deleteSchedule(id: string): Promise<ScheduleMutationResult>
-  /** Dispara el refresh YA, fuera de su horario ("Ejecutar ahora"). */
+  /** Dispara la actualización YA, fuera de su horario ("Ejecutar ahora"). */
   runScheduleNow(id: string): Promise<ScheduleMutationResult>
 }
 

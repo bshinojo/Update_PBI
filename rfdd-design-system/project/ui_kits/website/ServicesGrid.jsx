@@ -24,7 +24,7 @@ window.ServicesGrid = function ServicesGrid() {
           color: '#6B7585', marginBottom: 16,
         }}>Servicios</div>
         <h2 style={{
-          fontFamily: "'Cormorant Garamond', serif",
+          fontFamily: "'EB Garamond', serif",
           fontWeight: 500, fontSize: 52, lineHeight: 1.1,
           color: '#0E2543', margin: 0, maxWidth: 720,
         }}>¿Qué podemos hacer por tu empresa?</h2>
@@ -41,7 +41,7 @@ window.ServicesGrid = function ServicesGrid() {
               display: 'flex', flexDirection: 'column',
             }}>
               <h3 style={{
-                fontFamily: "'Cormorant Garamond', serif",
+                fontFamily: "'EB Garamond', serif",
                 fontWeight: 500, fontSize: 28, lineHeight: 1.2,
                 color: '#0E2543', margin: 0,
               }}>{s.title}</h3>

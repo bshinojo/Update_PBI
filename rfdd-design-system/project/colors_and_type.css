@@ -6,14 +6,16 @@
 
 /* ---------- FONTS ----------
    Substitutions (closest free Google Fonts to the brand mark):
-   - Cormorant Garamond  → display / wordmark serif (substitute for the
-     classical transitional serif in the logo)
-   - Source Serif 4      → body serif (warm, business-grade)
-   - Inter               → UI / labels / dashboards
+   - EB Garamond     → display / wordmark serif. Replaced the original
+     Cormorant Garamond pick: same Garamond tradition but lower contrast
+     and better legibility at UI sizes (it's what the product front-end
+     ships with — keep both in sync).
+   - Source Serif 4  → body serif (warm, business-grade)
+   - Inter           → UI / labels / dashboards
    FLAG: real brand uses a custom-set serif wordmark; please send the
    original font files if available. */
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   /* ---------- BRAND COLORS ---------- */
@@ -76,7 +78,7 @@
   --border-strong: var(--rfdd-navy-900);
 
   /* ---------- TYPE FAMILIES ---------- */
-  --font-display: "Cormorant Garamond", "Garamond", "Times New Roman", serif;
+  --font-display: "EB Garamond", "Garamond", "Times New Roman", serif;
   --font-serif:   "Source Serif 4", "Source Serif Pro", Georgia, serif;
   --font-sans:    "Inter", -apple-system, "Helvetica Neue", Arial, sans-serif;
   --font-mono:    ui-monospace, "SF Mono", Menlo, Consolas, monospace;

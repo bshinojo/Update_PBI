@@ -16,6 +16,24 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-1);
 }
+/* Tiles clickeables: filtran la lista de tablas por estado. */
+.clickable {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard);
+}
+.clickable:hover {
+  border-color: var(--color-accent);
+}
+.active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-weak);
+  box-shadow: inset 3px 0 0 var(--color-gold-strong), var(--shadow-1);
+}
 .tile .label {
   grid-column: 1;
   grid-row: 1;

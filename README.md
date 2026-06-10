@@ -85,8 +85,9 @@ src/
   domain/        Lógica pura: frecuencias, etiquetas en español, assertNever.
   hooks/         useWorkspaces / useDatasets / useTables sobre useRemoteData.
   state/         SelectionContext (workspace/modelo elegidos + tablas tildadas).
-  components/    AppHeader, TopSelect, TablesPanel, KpiStrip, ScheduleForm (rail),
-                 ScheduleBadge, StatusIndicator, WelcomeGuide, y primitivos en common/.
+  components/    AppHeader (con pill de salud del scheduler), TopSelect, TablesPanel,
+                 KpiStrip (tiles-filtro), UpcomingRuns, ScheduleForm (rail, con historial
+                 de corridas), ScheduleBadge, StatusIndicator, WelcomeGuide, y common/.
 
 backend/         API FastAPI + scheduler (ver backend/README.md).
 ```
@@ -96,3 +97,9 @@ backend/         API FastAPI + scheduler (ver backend/README.md).
 - **Persistencia:** los schedules se guardan en el backend (`backend/schedules.json`).
 - **Estado "En curso":** mientras un refresh está en vuelo se muestra *En curso* (spinner);
   el scheduler lo pollea y lo resuelve a *Completado* / *Falló* solo.
+- **Próxima ejecución:** cada schedule muestra cuándo corre la próxima vez (`nextRunAt`,
+  derivado por el backend); el sidebar lista las próximas 3 del modelo.
+- **Fallos explicados:** si una actualización falla, el motivo queda en el tooltip del ✗ y
+  en el historial del rail ("Últimas actualizaciones", de `backend/runs.jsonl`).
+- **Salud del scheduler:** el header muestra "Programador activo/detenido/Sin conexión"
+  (pollea `GET /health`); si el worker del VPS se cae, se ve en la UI.

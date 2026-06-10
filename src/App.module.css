@@ -54,11 +54,17 @@
 @media (max-width: 1000px) {
   .layout {
     grid-template-columns: 1fr;
+    /* Sidebar a su altura natural (los tercios iguales cortaban las KPI tiles por
+       la mitad); tabla y rail se reparten el resto con scroll interno. El tope va
+       en vh (definite): con % el track auto se mide por el contenido sin clampear
+       y deja un hueco gigante. */
     grid-auto-rows: minmax(0, 1fr);
+    grid-template-rows: minmax(0, auto);
   }
   .sidebar {
     border-right: none;
     border-bottom: 1px solid var(--color-border);
+    max-height: 38vh;
   }
   .welcomeArea {
     grid-column: auto;

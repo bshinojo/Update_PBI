@@ -15,6 +15,7 @@ logger = logging.getLogger("pbi.runlog")
 
 class RunLogger(Protocol):
     def append(self, record: dict) -> None: ...
+    def tail(self, schedule_id: str, limit: int = 20) -> list[dict]: ...
 
 
 class RunLog:
@@ -33,9 +34,33 @@ class RunLog:
         except Exception:  # noqa: BLE001 - el log NUNCA debe romper el scheduler
             logger.exception("No se pudo escribir el run log en %s", self._path)
 
+    def tail(self, schedule_id: str, limit: int = 20) -> list[dict]:
+        """Últimas `limit` corridas de un schedule, la más reciente primero. Lee el
+        archivo entero (a esta escala alcanza); las líneas ilegibles se saltean."""
+        out: list[dict] = []
+        try:
+            with self._lock:
+                if not self._path.exists():
+                    return []
+                lines = self._path.read_text(encoding="utf-8").splitlines()
+        except Exception:  # noqa: BLE001 - leer el historial nunca debe tirar la API
+            logger.exception("No se pudo leer el run log en %s", self._path)
+            return []
+        for line in lines:
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(rec, dict) and rec.get("scheduleId") == schedule_id:
+                out.append(rec)
+        return out[-limit:][::-1]
+
 
 class NullRunLog:
     """No-op (para tests o si se quiere desactivar el historial)."""
 
     def append(self, record: dict) -> None:
         pass
+
+    def tail(self, schedule_id: str, limit: int = 20) -> list[dict]:
+        return []

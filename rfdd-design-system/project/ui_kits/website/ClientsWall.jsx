@@ -16,7 +16,7 @@ window.ClientsWall = function ClientsWall() {
           color: '#6B7585', marginBottom: 16,
         }}>Confían en nosotros</div>
         <h2 style={{
-          fontFamily: "'Cormorant Garamond', serif",
+          fontFamily: "'EB Garamond', serif",
           fontWeight: 500, fontSize: 44, lineHeight: 1.1,
           color: '#0E2543', margin: '0 0 56px',
         }}>Nuestros Clientes</h2>
@@ -35,7 +35,7 @@ window.ClientsWall = function ClientsWall() {
               minHeight: 88,
             }}>
               <span style={{
-                fontFamily: "'Cormorant Garamond', serif",
+                fontFamily: "'EB Garamond', serif",
                 fontWeight: 500, fontSize: 20, letterSpacing: '0.08em',
                 color: '#4A5363',
               }}>{c}</span>

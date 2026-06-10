@@ -34,7 +34,15 @@
   border-bottom: 1px solid var(--color-border);
 }
 .statusCol {
-  width: 120px;
+  width: 150px;
+}
+
+/* Empty state cuando el filtro por estado (KPIs) no deja filas: con escape. */
+.filterEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: var(--space-5);
 }
 
 /* Filtro por nombre (en el slot de acciones del encabezado de la columna). */
@@ -100,6 +108,36 @@
 }
 .nameCell {
   font-size: var(--fs-md);
+}
+/* Wrapper flex DENTRO del td (un td con display:flex deja de ser table-cell y
+   desalinea las columnas). */
+.nameWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* Círculo de check al inicio de la fila: ancla visual de "acá se selecciona"
+   (diferencia la fila-toggle del badge-que-edita). */
+.checkmark {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-on-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard);
+}
+.row:hover .checkmark {
+  border-color: var(--color-accent);
+}
+.checkmarkOn {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
 }
 .badgeCell {
   max-width: 240px;

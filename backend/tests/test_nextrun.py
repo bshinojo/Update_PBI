@@ -123,3 +123,45 @@ def test_daily_empty_days_means_every_day():
     # A diferencia de weekly, daily con lista vacía = TODOS los días (días opcionales).
     f = DailyFrequency(kind="daily", time="06:00", days_of_week=[])
     assert next_run_at(f, at(2026, 6, 5, 7, 0)) == at(2026, 6, 6, 6, 0)  # sábado, igual corre
+
+
+# --- display_next_run (derivado para la UI) ---
+
+
+def test_display_next_run_enabled_returns_iso():
+    from app.models import Schedule
+    from app.nextrun import display_next_run
+
+    sch = Schedule(
+        id="s1", dataset_id="d", workspace_id="w", tables=["T"],
+        frequency=DailyFrequency(kind="daily", time="06:00"), time="06:00",
+        refresh_type="full", enabled=True,
+    )
+    assert display_next_run(sch, at(2026, 6, 5, 5, 0)) == "2026-06-05T06:00:00-03:00"
+
+
+def test_display_next_run_paused_returns_none():
+    from app.models import Schedule
+    from app.nextrun import display_next_run
+
+    sch = Schedule(
+        id="s1", dataset_id="d", workspace_id="w", tables=["T"],
+        frequency=DailyFrequency(kind="daily", time="06:00"), time="06:00",
+        refresh_type="full", enabled=False,
+    )
+    assert display_next_run(sch, at(2026, 6, 5, 5, 0)) is None
+
+
+def test_display_next_run_degenerate_frequency_returns_none():
+    # Weekly sin días: next_run_at lo empuja años al futuro -> para la UI es "nunca".
+    from app.models import Schedule
+    from app.nextrun import display_next_run
+
+    sch = Schedule(
+        id="s1", dataset_id="d", workspace_id="w", tables=["T"],
+        frequency=WeeklyFrequency.model_construct(
+            kind="weekly", days_of_week=[], time="06:00"
+        ),
+        time="06:00", refresh_type="full", enabled=True,
+    )
+    assert display_next_run(sch, at(2026, 6, 5, 5, 0)) is None

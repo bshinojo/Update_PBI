@@ -14,7 +14,7 @@ If the user invokes this skill without any other guidance, ask them what they wa
 - `colors_and_type.css` — single source of truth for tokens. Import it.
 - `assets/logo.png` is the canonical logo. **Do not redraw or restyle it.** Use directly; for reverse on dark backgrounds use `filter: brightness(0) invert(1)`.
 - Voice: Argentine Spanish, *vos*, sober, no emoji, no exclamations. See README → CONTENT FUNDAMENTALS.
-- Type: Cormorant Garamond display + Source Serif 4 lead + Inter UI/numbers.
+- Type: EB Garamond display + Source Serif 4 lead + Inter UI/numbers.
 - Numbers in dashboards: **Inter 700 tabular-nums** (display serif is reserved for headlines, not for KPI values — readability).
 - Color: navy `#0E2543` anchor, sky `#8FB8D6` secondary, gold `#C9A24E` accent (sparingly), paper `#F7F6F2` background.
 

@@ -26,8 +26,10 @@ export const WEEKDAYS_ES: WeekdayOption[] = [
 /** Todos los días JS, en orden Lunes-primero (default = "todos los días"). */
 export const ALL_WEEKDAY_VALUES: number[] = WEEKDAYS_ES.map((d) => d.value)
 
+// Convención de terminología: en la UI hablamos siempre de "actualización"
+// (es el nombre del producto). "Refresh"/"run" quedan para el código y los logs.
 export const REFRESH_TYPE_ES: Record<RefreshType, string> = {
-  full: 'Completo',
+  full: 'Completa',
   dataOnly: 'Solo datos',
   calculate: 'Recalcular',
 }

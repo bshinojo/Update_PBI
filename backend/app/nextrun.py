@@ -111,3 +111,19 @@ def next_run_at(frequency: Frequency, after: datetime) -> datetime:
 
     # Exhaustividad: el tipo Frequency no tiene más variantes.
     raise ValueError(f"Frecuencia desconocida: {kind!r}")
+
+
+def display_next_run(schedule, now: datetime) -> str | None:
+    """Próxima corrida PARA MOSTRAR (ISO, en ART), o None si el schedule está pausado
+    o la frecuencia no produce un candidato razonable (config degenerada que el
+    sentinel de next_run_at empuja años al futuro). Lo usan las rutas para derivar
+    Schedule.next_run_at en cada respuesta; nunca se persiste."""
+    if not schedule.enabled:
+        return None
+    try:
+        cand = next_run_at(schedule.frequency, now)
+    except Exception:  # una frecuencia corrupta no debe romper la respuesta HTTP
+        return None
+    if cand - now > timedelta(days=366):
+        return None
+    return cand.isoformat(timespec="seconds")

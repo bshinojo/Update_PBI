@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from app.config import Settings
+from app.executor import PollResult
 from app.models import CreateScheduleInput, DailyFrequency, HourlyFrequency, LastRun
 from app.nextrun import art_tz
 from app.scheduler import Scheduler
@@ -18,7 +19,7 @@ ART = art_tz()
 
 class FakeExecutor:
     """start() devuelve `token` (None = éxito inmediato). poll() consume `poll_results`
-    en orden y, agotados, devuelve 'Completed'."""
+    en orden (strings o tuplas (status, error)) y, agotados, devuelve 'Completed'."""
 
     def __init__(self, token=None, poll_results=None, fail_start=False) -> None:
         self.start_calls: list[str] = []
@@ -35,7 +36,8 @@ class FakeExecutor:
 
     def poll(self, schedule, token):
         self.poll_calls.append((schedule.id, token))
-        return self._poll_results.pop(0) if self._poll_results else "Completed"
+        raw = self._poll_results.pop(0) if self._poll_results else "Completed"
+        return PollResult(*raw) if isinstance(raw, tuple) else PollResult(raw)
 
 
 @pytest.fixture
@@ -172,6 +174,42 @@ def test_poll_failure_marks_failed(store, settings):
     assert _status(store, sch.id) == "Failed"
 
 
+def _last_run(store, sid):
+    sch = next((s for s in store.all_schedules() if s.id == sid), None)
+    return sch.last_run if sch else None
+
+
+def test_poll_failure_records_error_reason(store, settings):
+    # Power BI informa el motivo del fallo -> queda en lastRun.error para la UI.
+    sch = _make_daily(store, time="06:00")
+    ex = FakeExecutor(token="r1", poll_results=[("Failed", "Credencial vencida")])
+    sched = Scheduler(store, ex, settings)
+    sched.tick(at(5, 0))
+    sched.tick(at(6, 30))
+    lr = _last_run(store, sch.id)
+    assert lr.status == "Failed" and lr.error == "Credencial vencida"
+
+
+def test_completed_run_has_no_error(store, settings):
+    sch = _make_daily(store, time="06:00")
+    ex = FakeExecutor(token="r1", poll_results=["Completed"])
+    sched = Scheduler(store, ex, settings)
+    sched.tick(at(5, 0))
+    sched.tick(at(6, 30))
+    lr = _last_run(store, sch.id)
+    assert lr.status == "Completed" and lr.error is None
+
+
+def test_start_failure_records_exception_message(store, settings):
+    sch = _make_daily(store, time="06:00")
+    ex = FakeExecutor(fail_start=True)  # start() lanza RuntimeError("boom")
+    sched = Scheduler(store, ex, settings)
+    sched.tick(at(5, 0))
+    sched.tick(at(6, 30))
+    lr = _last_run(store, sch.id)
+    assert lr.status == "Failed" and "boom" in lr.error
+
+
 def test_poll_timeout_marks_failed(store):
     sch = _make_daily(store, time="06:00")
     ex = FakeExecutor(token="r1", poll_results=["InProgress"] * 10)  # nunca completa
@@ -181,6 +219,8 @@ def test_poll_timeout_marks_failed(store):
     assert _status(store, sch.id) == "InProgress"
     sched.tick(at(6, 30) + timedelta(minutes=6))  # supera el timeout de 5min -> Failed
     assert _status(store, sch.id) == "Failed"
+    # El motivo del timeout queda registrado para la UI.
+    assert "tiempo máximo" in _last_run(store, sch.id).error
 
 
 def test_defers_second_schedule_same_dataset(store, settings):
@@ -247,6 +287,7 @@ def test_reconcile_orphans_marks_inprogress_failed(store, settings):
     assert sched.reconcile_orphans(at(7, 0)) == [orphan.id]
     by_id = {s.id: s for s in store.all_schedules()}
     assert by_id[orphan.id].last_run.status == "Failed"
+    assert "reinici" in by_id[orphan.id].last_run.error  # el motivo queda explicado
     assert by_id[done.id].last_run.status == "Completed"  # intacto
 
 

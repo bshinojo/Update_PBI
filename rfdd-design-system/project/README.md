@@ -116,7 +116,7 @@ ui_kits/
 - **Semantic** colors (`pos #2E7D5B`, `neg #B23C3C`, `warn #C98A1F`) are desaturated and editorial, never bright candy red/green.
 
 **Type.**
-- Three families. **Cormorant Garamond** for display (the tradition the wordmark evokes — high-contrast classical serif with elegant italics). **Source Serif 4** for body in long-form contexts (FAQs, equipo bios, informes). **Inter** for UI, labels, navigation, dashboards.
+- Three families. **EB Garamond** for display (the Garamond tradition the wordmark evokes; it replaced the original Cormorant Garamond pick — lower stroke contrast and much better legibility at UI sizes, and it matches what the product front-end ships). **Source Serif 4** for body in long-form contexts (FAQs, equipo bios, informes). **Inter** for UI, labels, navigation, dashboards.
 - Headings are *display serif*. Subheads can be *serif semibold* or *sans semibold* depending on context (editorial vs. UI).
 - Tracked small-caps ("DESARROLLO DE NEGOCIOS", "FUSIONES Y ADQUISICIONES") are reserved for section eyebrows and the tagline. ~0.22em–0.32em letter-spacing.
 
@@ -187,7 +187,7 @@ ui_kits/
 
 ## CAVEATS & ASSUMPTIONS
 
-- **Fonts substituted.** Cormorant Garamond / Source Serif 4 / Inter — flag if the brand has a real type stack.
+- **Fonts substituted.** EB Garamond / Source Serif 4 / Inter — flag if the brand has a real type stack.
 - **No codebase, no Figma.** Component shapes (button/card geometry) are inferred from the brand's editorial-financial positioning, not copied from production code.
 - **Dashboards.** RFDD's "Demos" pages embed live Power BI dashboards we cannot inspect. The `dashboard/` UI kit is a stylistic interpretation — colors and KPI tile shapes follow Power BI conventions filtered through the RFDD palette.
 - **Icons.** Lucide substituted for unknown in-house set.

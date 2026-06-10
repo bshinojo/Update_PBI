@@ -45,7 +45,7 @@ window.BarChart = function BarChart() {
     }
   }, "Ventas Mensuales"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 22,
       color: '#0E2543',
@@ -266,7 +266,7 @@ window.DataTable = function DataTable() {
     }
   }, "Top Cuentas"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 22,
       color: '#0E2543'
@@ -422,7 +422,7 @@ window.Donut = function Donut() {
     x: cx,
     y: cy - 4,
     textAnchor: "middle",
-    fontFamily: "'Cormorant Garamond', serif",
+    fontFamily: "'EB Garamond', serif",
     fontWeight: "500",
     fontSize: "22",
     fill: "#0E2543"
@@ -673,7 +673,7 @@ window.LineChart = function LineChart() {
     }
   }, "Margen Bruto Acumulado"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 22,
       color: '#0E2543',
@@ -868,7 +868,7 @@ window.ClientsWall = function ClientsWall() {
     }
   }, "Conf\xEDan en nosotros"), /*#__PURE__*/React.createElement("h2", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 44,
       lineHeight: 1.1,
@@ -895,7 +895,7 @@ window.ClientsWall = function ClientsWall() {
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 20,
       letterSpacing: '0.08em',
@@ -1004,7 +1004,7 @@ window.FAQ = function FAQ() {
     }
   }, "Preguntas Frecuentes"), /*#__PURE__*/React.createElement("h2", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 44,
       lineHeight: 1.1,
@@ -1044,7 +1044,7 @@ window.FAQ = function FAQ() {
     }
   }, f.q), /*#__PURE__*/React.createElement("span", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontSize: 28,
       color: '#0E2543',
       flexShrink: 0,
@@ -1143,7 +1143,7 @@ window.Hero = function Hero() {
     }
   }, slide.eyebrow), /*#__PURE__*/React.createElement("h1", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 72,
       lineHeight: 1.05,
@@ -1246,7 +1246,7 @@ window.ServicesGrid = function ServicesGrid() {
     }
   }, "Servicios"), /*#__PURE__*/React.createElement("h2", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 52,
       lineHeight: 1.1,
@@ -1273,7 +1273,7 @@ window.ServicesGrid = function ServicesGrid() {
     }
   }, /*#__PURE__*/React.createElement("h3", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 28,
       lineHeight: 1.2,
@@ -1370,7 +1370,7 @@ window.SiteFooter = function SiteFooter() {
     key: c.title
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 18,
       color: '#F7F6F2',
@@ -1393,7 +1393,7 @@ window.SiteFooter = function SiteFooter() {
     }
   }, it))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontFamily: "'Cormorant Garamond', serif",
+      fontFamily: "'EB Garamond', serif",
       fontWeight: 500,
       fontSize: 18,
       color: '#F7F6F2',

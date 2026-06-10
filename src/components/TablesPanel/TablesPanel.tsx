@@ -8,13 +8,21 @@ import { Skeleton } from '../common/Skeleton'
 import { TableRow } from './TableRow'
 import styles from './TablesPanel.module.css'
 
+/** Filtro por estado que aplican las KPI tiles del sidebar. */
+export type StatusFilter = 'all' | 'scheduled' | 'paused' | 'unscheduled'
+
 interface TablesPanelProps {
   data: RemoteData<DatasetTablesView>
   checked: ReadonlySet<string>
-  /** Tablas de la programación que se está editando (para resaltarlas). */
+  /** Membresía (editable) de la programación que se está editando. */
   editingTables: string[]
+  /** true = modo edición: tocar una fila agrega/quita de la programación editada. */
+  isEditing: boolean
+  statusFilter: StatusFilter
+  onClearStatusFilter: () => void
   onToggle: (name: string) => void
-  onSetChecked: (names: string[]) => void
+  /** Setea el conjunto ACTIVO completo (selección, o membresía en edición). */
+  onSetActive: (names: string[]) => void
   onEditBadge: (schedule: Schedule) => void
 }
 
@@ -26,16 +34,25 @@ function normalize(s: string): string {
     .replace(/\p{M}/gu, '')
 }
 
+const STATUS_FILTER_LABEL: Record<Exclude<StatusFilter, 'all'>, string> = {
+  scheduled: 'programadas (activas)',
+  paused: 'en pausa',
+  unscheduled: 'sin programar',
+}
+
 export function TablesPanel({
   data,
   checked,
   editingTables,
+  isEditing,
+  statusFilter,
+  onClearStatusFilter,
   onToggle,
-  onSetChecked,
+  onSetActive,
   onEditBadge,
 }: TablesPanelProps) {
-  // El filtro es estado local de la columna; App remonta el panel al cambiar de
-  // modelo (key={datasetId}), así que se resetea solo.
+  // El filtro por nombre es estado local de la columna; App remonta el panel al
+  // cambiar de modelo (key={datasetId}), así que se resetea solo.
   const [filter, setFilter] = useState('')
 
   const editingSet = useMemo(() => new Set(editingTables), [editingTables])
@@ -49,20 +66,34 @@ export function TablesPanel({
 
   const tables = data.status === 'success' ? data.data.tables : []
   const needle = normalize(filter.trim())
-  const visible = needle
-    ? tables.filter((t) => normalize(t.name).includes(needle))
-    : tables
 
-  // "Seleccionar todas" opera sobre las tablas VISIBLES (respeta el filtro): agrega
-  // o quita las visibles sin tocar la selección de las filas ocultas por el filtro.
+  // El filtro de las KPI tiles (estado) se compone con el filtro por nombre.
+  function matchesStatus(scheduleId: string | undefined): boolean {
+    if (statusFilter === 'all') return true
+    if (!scheduleId) return statusFilter === 'unscheduled'
+    const s = scheduleById.get(scheduleId)
+    const paused = s ? s.enabled === false : false
+    return statusFilter === 'paused' ? paused : statusFilter === 'scheduled' ? !paused : false
+  }
+
+  const visible = tables.filter(
+    (t) => (!needle || normalize(t.name).includes(needle)) && matchesStatus(t.scheduleId),
+  )
+
+  // Conjunto ACTIVO sobre el que opera la fila y el "Seleccionar todas": la
+  // selección para crear, o la membresía de la programación en edición.
+  const activeSet = isEditing ? editingSet : checked
+
+  // "Seleccionar todas" opera sobre las tablas VISIBLES (respeta los filtros):
+  // agrega o quita las visibles sin tocar las filas ocultas.
   const visibleNames = visible.map((t) => t.name)
-  const allVisibleChecked =
-    visibleNames.length > 0 && visibleNames.every((n) => checked.has(n))
+  const allVisibleActive =
+    visibleNames.length > 0 && visibleNames.every((n) => activeSet.has(n))
   function toggleAllVisible() {
-    const next = new Set(checked)
-    if (allVisibleChecked) for (const n of visibleNames) next.delete(n)
+    const next = new Set(activeSet)
+    if (allVisibleActive) for (const n of visibleNames) next.delete(n)
     else for (const n of visibleNames) next.add(n)
-    onSetChecked([...next])
+    onSetActive([...next])
   }
 
   return (
@@ -97,10 +128,26 @@ export function TablesPanel({
         ) : tables.length === 0 ? (
           <EmptyState title="Este modelo no tiene tablas" />
         ) : visible.length === 0 ? (
-          <EmptyState
-            title={`Sin resultados para “${filter.trim()}”`}
-            hint="Probá con otro nombre o borrá el filtro."
-          />
+          statusFilter !== 'all' && !needle ? (
+            <div className={styles.filterEmpty}>
+              <EmptyState
+                title={`No hay tablas ${STATUS_FILTER_LABEL[statusFilter]}`}
+                hint="El filtro viene de las tarjetas del resumen, a la izquierda."
+              />
+              <button type="button" className="btn" onClick={onClearStatusFilter}>
+                Quitar filtro
+              </button>
+            </div>
+          ) : (
+            <EmptyState
+              title={`Sin resultados para “${filter.trim()}”`}
+              hint={
+                statusFilter !== 'all'
+                  ? 'Probá con otro nombre o quitá los filtros (nombre y estado).'
+                  : 'Probá con otro nombre o borrá el filtro.'
+              }
+            />
+          )
         ) : (
           <table className={styles.table}>
             <thead>
@@ -113,12 +160,18 @@ export function TablesPanel({
                       className={styles.selectAll}
                       onClick={toggleAllVisible}
                     >
-                      {allVisibleChecked ? 'Quitar selección' : 'Seleccionar todas'}
+                      {allVisibleActive
+                        ? isEditing
+                          ? 'Quitar todas'
+                          : 'Quitar selección'
+                        : isEditing
+                          ? 'Incluir todas'
+                          : 'Seleccionar todas'}
                     </button>
                   </span>
                 </th>
                 <th>Programación</th>
-                <th className={styles.statusCol}>Último run</th>
+                <th className={styles.statusCol}>Última actualización</th>
               </tr>
             </thead>
             <tbody>
@@ -127,8 +180,9 @@ export function TablesPanel({
                   key={t.name}
                   table={t}
                   schedule={t.scheduleId ? scheduleById.get(t.scheduleId) : undefined}
-                  checked={checked.has(t.name)}
-                  editing={editingSet.has(t.name)}
+                  checked={!isEditing && checked.has(t.name)}
+                  editing={isEditing && editingSet.has(t.name)}
+                  isEditingMode={isEditing}
                   onToggle={() => onToggle(t.name)}
                   onEditBadge={onEditBadge}
                 />

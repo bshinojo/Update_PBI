@@ -8,10 +8,14 @@ import type {
 import {
   REFRESH_TYPE_ES,
   REFRESH_TYPE_HINT_ES,
+  RUN_STATUS_ES,
   TIMEZONE_LABEL,
 } from '../../domain/labels'
 import { formatFrequency } from '../../domain/frequency'
+import { formatNextRun, formatRelativeTime, formatRunDuration } from '../../domain/time'
+import { useRuns } from '../../hooks/useRuns'
 import { ColumnHeader } from '../common/ColumnHeader'
+import { Icon } from '../common/Icon'
 import { FrequencyFields } from './FrequencyFields'
 import { useScheduleForm } from './useScheduleForm'
 import styles from './ScheduleForm.module.css'
@@ -19,14 +23,18 @@ import styles from './ScheduleForm.module.css'
 interface SchedulePanelProps {
   /** Si hay schedule, el rail está en modo edición; si no, en modo crear. */
   editing: Schedule | null
+  /** Membresía EDITABLE de la programación (modo edición; vive en App). */
+  editTables: string[]
   workspaceId: string | null
   datasetId: string | null
   /** Tablas tildadas en la lista (modo crear). */
   checkedTableNames: string[]
-  /** Tablas tildadas que ya tenían schedule y serán reasignadas (modo crear). */
-  reassignTables: string[]
+  /** Tablas del objetivo que pertenecen a OTRA programación y se moverían. */
+  reassignments: Array<{ table: string; from: string }>
+  /** Mensaje de éxito de la última mutación (vive en App: sobrevive al remount). */
+  flash: string | null
   onSaved: (result: ScheduleMutationResult) => void
-  /** "Ejecutar ahora": aplica el resultado a la vista SIN salir del modo edición. */
+  /** Acciones que NO salen del modo edición (Ejecutar ahora / pausar al toque). */
   onRan: (result: ScheduleMutationResult) => void
   /** Salir del modo edición y volver a "nueva programación". */
   onCancelEdit: () => void
@@ -41,10 +49,12 @@ const KINDS: Array<{ kind: FrequencyKind; label: string }> = [
 
 export function SchedulePanel({
   editing,
+  editTables,
   workspaceId,
   datasetId,
   checkedTableNames,
-  reassignTables,
+  reassignments,
+  flash,
   onSaved,
   onRan,
   onCancelEdit,
@@ -59,10 +69,12 @@ export function SchedulePanel({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [running, setRunning] = useState(false)
   const [runMessage, setRunMessage] = useState<string | null>(null)
+  // El switch "Habilitado" en edición aplica AL INSTANTE (PUT /enabled).
+  const [togglingEnabled, setTogglingEnabled] = useState(false)
 
   const isEdit = editing !== null
-  const targetTables = isEdit ? editing.tables : checkedTableNames
-  const canCreate = targetTables.length > 0 && !!workspaceId && !!datasetId
+  const targetTables = isEdit ? editTables : checkedTableNames
+  const canSubmit = targetTables.length > 0 && !!workspaceId && !!datasetId
 
   // Vista previa en vivo de la programación (solo si el form es válido).
   const built = build()
@@ -89,6 +101,7 @@ export function SchedulePanel({
               enabled: state.enabled,
             })
           : await api.updateSchedule(editing.id, {
+              tables: editTables,
               frequency: result.frequency,
               refreshType: 'full',
               enabled: state.enabled,
@@ -128,13 +141,35 @@ export function SchedulePanel({
     try {
       const mutation = await api.runScheduleNow(editing.id)
       onRan(mutation)
-      setRunMessage('Refresh disparado: mirá el estado en la columna "Último run".')
+      setRunMessage('Actualización disparada: mirá el estado en "Última actualización".')
     } catch (e) {
-      setSubmitError(e instanceof ApiError ? e.message : 'No se pudo disparar el refresh.')
+      setSubmitError(e instanceof ApiError ? e.message : 'No se pudo disparar la actualización.')
     } finally {
       setRunning(false)
     }
   }
+
+  // En EDICIÓN, el switch pausa/reanuda al instante (endpoint dedicado, sin pasar
+  // por Guardar): pausar es la operación más frecuente y no debería costar 3 clicks.
+  // En ALTA solo define el estado inicial (se manda en el POST).
+  async function handleToggleEnabled(next: boolean) {
+    patch({ enabled: next })
+    if (editing === null) return
+    setSubmitError(null)
+    setTogglingEnabled(true)
+    try {
+      const mutation = await api.setScheduleEnabled(editing.id, next)
+      onRan(mutation)
+    } catch (e) {
+      patch({ enabled: !next }) // revertir: el servidor no lo aplicó
+      setSubmitError(e instanceof ApiError ? e.message : 'No se pudo cambiar el estado.')
+    } finally {
+      setTogglingEnabled(false)
+    }
+  }
+
+  const nextRunText =
+    isEdit && editing.nextRunAt ? formatNextRun(editing.nextRunAt) : ''
 
   return (
     <section className={styles.rail} aria-label="Programación">
@@ -165,7 +200,12 @@ export function SchedulePanel({
                 type="button"
                 className="btn btn-primary"
                 onClick={handleSave}
-                disabled={busy}
+                disabled={busy || editTables.length === 0}
+                title={
+                  editTables.length === 0
+                    ? 'La programación necesita al menos una tabla'
+                    : undefined
+                }
               >
                 {busy ? 'Guardando…' : 'Guardar cambios'}
               </button>
@@ -175,8 +215,8 @@ export function SchedulePanel({
               type="button"
               className={`btn btn-primary ${styles.cta}`}
               onClick={handleSave}
-              disabled={busy || !canCreate}
-              title={canCreate ? undefined : 'Seleccioná al menos una tabla'}
+              disabled={busy || !canSubmit}
+              title={canSubmit ? undefined : 'Seleccioná al menos una tabla'}
             >
               {busy
                 ? 'Programando…'
@@ -197,10 +237,13 @@ export function SchedulePanel({
           </ul>
         ) : null}
         {submitError ? <div className={styles.submitError}>{submitError}</div> : null}
+        {flash ? <div className={styles.flash}>{flash}</div> : null}
 
         {targetTables.length === 0 ? (
           <p className={styles.emptyHint}>
-            Seleccioná una o más tablas de la izquierda (tocá la fila) para programarlas.
+            {isEdit
+              ? 'La programación quedó sin tablas: agregá al menos una tocando las filas de la izquierda (o eliminala).'
+              : 'Seleccioná una o más tablas de la izquierda (tocá la fila) para programarlas.'}
           </p>
         ) : (
           <div className={styles.targets}>
@@ -211,14 +254,33 @@ export function SchedulePanel({
               <strong>{targetTables.length}</strong>{' '}
               {targetTables.length === 1 ? 'tabla' : 'tablas'} · {targetTables.join(', ')}
             </span>
+            {isEdit ? (
+              <span className={styles.targetsHint}>
+                Tocá las filas de la izquierda para agregar o quitar tablas; se aplica
+                al guardar.
+              </span>
+            ) : null}
+            {isEdit ? (
+              <span className={styles.nextRun}>
+                Próxima ejecución:{' '}
+                <strong>
+                  {editing.enabled
+                    ? nextRunText || '—'
+                    : 'en pausa (no se ejecuta)'}
+                </strong>
+              </span>
+            ) : null}
           </div>
         )}
 
-        {!isEdit && reassignTables.length > 0 ? (
+        {reassignments.length > 0 ? (
           <div className={styles.warn}>
-            {reassignTables.length === 1
-              ? `La tabla ${reassignTables[0]} ya tenía una programación y se moverá a esta (se quita de la anterior).`
-              : `Estas tablas ya tenían programación y se moverán a esta (se quitan de la anterior): ${reassignTables.join(', ')}.`}
+            {reassignments.length === 1
+              ? `La tabla ${reassignments[0].table} hoy pertenece a la programación “${reassignments[0].from}” y se moverá a esta.`
+              : `Estas tablas hoy pertenecen a otra programación y se moverán a esta: ${reassignments
+                  .map((r) => `${r.table} (${r.from})`)
+                  .join(', ')}.`}{' '}
+            Si la programación de origen queda sin tablas, se elimina.
           </div>
         ) : null}
 
@@ -233,11 +295,15 @@ export function SchedulePanel({
               {running ? 'Disparando…' : '▶ Ejecutar ahora'}
             </button>
             <span className={styles.fieldHint}>
-              Dispara el refresh ya mismo, además de la programación.
+              Dispara la actualización ya mismo, además de la programación.
             </span>
             {runMessage ? <span className={styles.runOk}>{runMessage}</span> : null}
           </div>
         ) : null}
+
+        {/* Historial ARRIBA del formulario: quien entra a editar tras un fallo
+            busca el "por qué" antes que los campos de frecuencia. */}
+        {isEdit ? <RunHistory schedule={editing} /> : null}
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Frecuencia</span>
@@ -270,7 +336,7 @@ export function SchedulePanel({
         </div>
 
         <div className={styles.field}>
-          <span className={styles.fieldLabel}>Tipo de refresh</span>
+          <span className={styles.fieldLabel}>Tipo de actualización</span>
           <p className={styles.fieldHint}>
             <strong>{REFRESH_TYPE_ES.full}</strong> — {REFRESH_TYPE_HINT_ES.full}
           </p>
@@ -280,7 +346,9 @@ export function SchedulePanel({
           <span className={styles.toggleText}>
             <span className={styles.toggleTitle}>Habilitado</span>
             <span className={styles.toggleHint}>
-              Si lo desactivás, la programación se guarda pero no se ejecuta.
+              {isEdit
+                ? 'Pausa o reanuda al instante (sin Guardar). En pausa se conserva todo, pero no corre.'
+                : 'Si lo desactivás, la programación se guarda pero no se ejecuta.'}
             </span>
           </span>
           <input
@@ -288,23 +356,80 @@ export function SchedulePanel({
             className={styles.switch}
             role="switch"
             checked={state.enabled}
-            onChange={(e) => patch({ enabled: e.target.checked })}
+            disabled={togglingEnabled}
+            onChange={(e) => void handleToggleEnabled(e.target.checked)}
           />
         </label>
+      </div>
 
+      {/* Resumen SIEMPRE visible (footer del rail): en notebooks, el resumen al
+          fondo del scroll quedaba bajo el fold justo en las frecuencias largas. */}
+      <footer className={styles.summaryBar}>
         {previewText ? (
-          <div className={styles.summary}>
-            <span className={styles.summaryLabel}>Resumen</span>
+          <>
             <span className={styles.summaryText}>
               {previewText} · {REFRESH_TYPE_ES.full}
+              {targetTables.length > 0
+                ? ` · ${targetTables.length} ${targetTables.length === 1 ? 'tabla' : 'tablas'}`
+                : ''}
             </span>
             <span className={styles.summaryMeta}>
               {TIMEZONE_LABEL} · {state.enabled ? 'Habilitada' : 'En pausa'}
             </span>
-          </div>
-        ) : null}
-
-      </div>
+          </>
+        ) : (
+          <span className={styles.summaryMeta}>
+            Completá la frecuencia para ver el resumen.
+          </span>
+        )}
+      </footer>
     </section>
+  )
+}
+
+/** Historial de corridas del schedule en edición (últimas 5, la más nueva primero). */
+function RunHistory({ schedule }: { schedule: Schedule }) {
+  // El timestamp del lastRun cambia cuando una corrida termina o arranca: con eso
+  // como key de refresco, el historial se actualiza solo (vía el polling de 30s).
+  const state = useRuns(schedule.id, schedule.lastRun?.timestamp)
+
+  return (
+    <div className={styles.history}>
+      <span className={styles.fieldLabel}>Últimas actualizaciones</span>
+      {state.status === 'loading' ? (
+        <span className={styles.historyEmpty}>Cargando…</span>
+      ) : state.status === 'error' ? (
+        <span className={styles.historyEmpty}>No se pudo cargar el historial.</span>
+      ) : state.runs.length === 0 ? (
+        <span className={styles.historyEmpty}>
+          Sin actualizaciones todavía: corre a su hora, o probá "Ejecutar ahora".
+        </span>
+      ) : (
+        <ul className={styles.historyList}>
+          {state.runs.map((r) => {
+            const duration = formatRunDuration(r.startedAt, r.finishedAt)
+            return (
+              <li key={`${r.startedAt}-${r.finishedAt}`} className={styles.historyItem}>
+                <Icon
+                  name={r.status === 'Completed' ? 'check' : r.status === 'Failed' ? 'x' : 'spinner'}
+                  size={13}
+                  className={r.status === 'Completed' ? styles.histOk : styles.histFail}
+                  title={RUN_STATUS_ES[r.status]}
+                />
+                <span className={styles.historyWhen}>
+                  {formatRelativeTime(r.startedAt)}
+                  {duration ? ` · duró ${duration}` : ''}
+                </span>
+                {r.status === 'Failed' && r.error ? (
+                  <span className={styles.historyError} title={r.error}>
+                    {r.error}
+                  </span>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
   )
 }

@@ -57,7 +57,7 @@ window.Hero = function Hero() {
             color: '#C9A24E', marginBottom: 24,
           }}>{slide.eyebrow}</div>
           <h1 style={{
-            fontFamily: "'Cormorant Garamond', serif",
+            fontFamily: "'EB Garamond', serif",
             fontWeight: 500, fontSize: 72, lineHeight: 1.05,
             letterSpacing: '-0.01em', maxWidth: 880,
             margin: 0, color: '#F7F6F2',

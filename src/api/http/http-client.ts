@@ -6,6 +6,8 @@ import { ApiError } from '../client'
 import type {
   CreateScheduleInput,
   Dataset,
+  HealthStatus,
+  RunRecord,
   Schedule,
   ScheduleMutationResult,
   TableInfo,
@@ -48,6 +50,12 @@ export class HttpScheduleApi implements ScheduleApi {
   }
   listSchedules(datasetId: string) {
     return this.request<Schedule[]>(`/datasets/${datasetId}/schedules`)
+  }
+  listRuns(scheduleId: string, limit = 20) {
+    return this.request<RunRecord[]>(`/schedules/${scheduleId}/runs?limit=${limit}`)
+  }
+  getHealth() {
+    return this.request<HealthStatus>('/health')
   }
   createSchedule(input: CreateScheduleInput) {
     return this.request<ScheduleMutationResult>('/schedules', {

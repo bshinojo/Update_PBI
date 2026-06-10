@@ -40,7 +40,7 @@ window.SiteFooter = function SiteFooter() {
           {cols.map(c => (
             <div key={c.title}>
               <div style={{
-                fontFamily: "'Cormorant Garamond', serif",
+                fontFamily: "'EB Garamond', serif",
                 fontWeight: 500, fontSize: 18, color: '#F7F6F2',
                 marginBottom: 16,
               }}>{c.title}</div>
@@ -57,7 +57,7 @@ window.SiteFooter = function SiteFooter() {
           ))}
           <div>
             <div style={{
-              fontFamily: "'Cormorant Garamond', serif",
+              fontFamily: "'EB Garamond', serif",
               fontWeight: 500, fontSize: 18, color: '#F7F6F2',
               marginBottom: 16,
             }}>Newsletter</div>

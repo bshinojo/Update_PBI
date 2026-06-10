@@ -19,7 +19,7 @@ window.LineChart = function LineChart() {
         letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B7585',
       }}>Margen Bruto Acumulado</div>
       <div style={{
-        fontFamily: "'Cormorant Garamond', serif", fontWeight: 500,
+        fontFamily: "'EB Garamond', serif", fontWeight: 500,
         fontSize: 22, color: '#0E2543', marginTop: 2, marginBottom: 12,
       }}>Tendencia 12 meses</div>
       <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}>

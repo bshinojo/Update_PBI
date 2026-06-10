@@ -185,7 +185,9 @@ def test_run_now_endpoint(tmp_path):
             return None  # resuelto al instante -> Completed
 
         def poll(self, schedule, token):
-            return "Completed"
+            from app.executor import PollResult
+
+            return PollResult("Completed")
 
     ds = FakeDataSource()
     store = ScheduleStore(str(tmp_path / "db.json"), ds)
@@ -214,3 +216,69 @@ def test_run_now_endpoint_503_without_scheduler(client):
     # arranca) la ejecución a demanda se rechaza con un mensaje claro.
     r = client.post("/schedules/sch-1/run")
     assert r.status_code == 503
+
+
+# --- nextRunAt derivado (solo en las respuestas, nunca persistido) ---
+
+
+def test_schedules_carry_next_run_at(client):
+    scheds = {s["id"]: s for s in client.get("/datasets/ds-ventas-retail/schedules").json()}
+    # Habilitado -> trae el próximo disparo en ISO ART.
+    assert "nextRunAt" in scheds["sch-1"]
+    assert scheds["sch-1"]["nextRunAt"].endswith("-03:00")
+    # Las mutaciones también lo derivan en `affected`.
+    res = client.put("/schedules/sch-1/enabled", json={"enabled": False}).json()
+    # Pausado -> el campo va AUSENTE (None se excluye), igual que los demás opcionales.
+    assert "nextRunAt" not in res["affected"]
+    res = client.put("/schedules/sch-1/enabled", json={"enabled": True}).json()
+    assert "nextRunAt" in res["affected"]
+
+
+def test_next_run_at_not_persisted(tmp_path):
+    import json as _json
+
+    db = tmp_path / "db.json"
+    store = ScheduleStore(str(db), FakeDataSource())
+    store._schedules = seed_schedules()
+    store._save()
+    raw = _json.loads(db.read_text(encoding="utf-8"))
+    assert all("nextRunAt" not in item for item in raw)
+
+
+# --- Historial de corridas (GET /schedules/{id}/runs) ---
+
+
+def test_runs_history_endpoint(client, tmp_path):
+    from app.dependencies import get_runlog
+    from app.runlog import RunLog
+
+    rl = RunLog(str(tmp_path / "runs.jsonl"))
+    base = {
+        "datasetId": "ds-ventas-retail", "workspaceId": "ws-ventas",
+        "tables": ["Ventas"], "refreshType": "full", "refreshId": "r1",
+    }
+    rl.append(base | {"scheduleId": "sch-1", "status": "Completed",
+                      "startedAt": "2026-06-09T06:00:00-03:00",
+                      "finishedAt": "2026-06-09T06:04:00-03:00", "error": None})
+    rl.append(base | {"scheduleId": "sch-1", "status": "Failed",
+                      "startedAt": "2026-06-10T06:00:00-03:00",
+                      "finishedAt": "2026-06-10T06:01:00-03:00",
+                      "error": "Credencial vencida"})
+    rl.append(base | {"scheduleId": "OTRO", "status": "Completed",
+                      "startedAt": "2026-06-10T07:00:00-03:00",
+                      "finishedAt": "2026-06-10T07:01:00-03:00", "error": None})
+    app.dependency_overrides[get_runlog] = lambda: rl
+    try:
+        r = client.get("/schedules/sch-1/runs")
+        assert r.status_code == 200
+        runs = r.json()
+        # Solo las de sch-1, la más reciente primero, con el motivo del fallo.
+        assert [x["status"] for x in runs] == ["Failed", "Completed"]
+        assert runs[0]["error"] == "Credencial vencida"
+        assert "error" not in runs[1]  # None excluido del JSON
+        # limit acota el resultado.
+        assert len(client.get("/schedules/sch-1/runs?limit=1").json()) == 1
+        # Sin historial -> lista vacía (no 404: el schedule pudo no correr nunca).
+        assert client.get("/schedules/sch-2/runs").json() == []
+    finally:
+        app.dependency_overrides.pop(get_runlog, None)

@@ -7,7 +7,7 @@
     <path d="M16 36 C 28 26, 40 50, 52 36 S 78 26, 86 36" stroke="#A9C8DD" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.7"></path>
   </g>
   
-  <text x="160" y="142" text-anchor="middle" font-family="&#39;Cormorant Garamond&#39;, Garamond, serif" font-weight="500" font-size="22" fill="#0E2543" letter-spacing="0.5">Romano, Fiocca &amp; Díaz Delfino</text>
+  <text x="160" y="142" text-anchor="middle" font-family="&#39;EB Garamond&#39;, Garamond, serif" font-weight="500" font-size="22" fill="#0E2543" letter-spacing="0.5">Romano, Fiocca &amp; Díaz Delfino</text>
   
   <line x1="80" y1="160" x2="240" y2="160" stroke="#0E2543" stroke-width="0.75"></line>
   

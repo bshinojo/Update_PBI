@@ -28,9 +28,10 @@ Las tres piezas del proyecto (todas implementadas):
 > Estado actual: **frontend + backend FastAPI + scheduler implementados y cableados** (el front
 > habla con el backend vía `/api`). El backend lee y dispara los refreshes contra **Power BI real**.
 > **No hay mock ni modo seed**: la app es Power BI-only y requiere credenciales para arrancar. Lo
-> único fuera de alcance es la **autenticación** real (la cuenta del header es un stub visual). Lo
-> único pendiente de verificar contra el tenant real es el **disparo del refresh end-to-end** (las
-> lecturas y el listado de tablas ya se verificaron — ver §6).
+> único fuera de alcance es la **autenticación** real (no hay login; el header muestra el
+> indicador de salud del scheduler, no una cuenta). Lo único pendiente de verificar contra el
+> tenant real es el **disparo del refresh end-to-end** (las lecturas y el listado de tablas ya se
+> verificaron — ver §6).
 
 ### Idea original (para no perder la intención)
 
@@ -55,15 +56,20 @@ Las tres piezas del proyecto (todas implementadas):
   (lead) + **Inter** (UI/números tabulares); labels en **versalitas tracked**; **sombras navy
   sutiles** y bordes hairline 1px. **Reemplaza la estética "flat por ausencia" original** (que
   prohibía sombras y serif). Fuente de verdad de tokens: `rfdd-design-system/project/colors_and_type.css`;
-  el `:root` de `src/index.css` **remapea** los tokens de la app a valores RFDD.
+  el `:root` de `src/index.css` **remapea** los tokens de la app a valores RFDD. El **kit ya usa
+  EB Garamond** como display (se reemplazó Cormorant Garamond, la serif original de alto
+  contraste, para que kit y front queden alineados — pedido del usuario 2026-06-10).
 - **UI 100% en español.**
 - **Cross-platform (Windows dev → Linux/nginx):** `base: './'` en `vite.config.ts`,
   `forceConsistentCasingInFileNames` en `tsconfig.json`, `.gitattributes` con LF. Nada de
   paths absolutos de SO; imports siempre con `/` (los assets, p. ej. el logo, se importan en
   TS para que Vite genere URLs relativas al `base`).
-- **Sin auth real todavía:** la barra superior (`AppHeader`) muestra cuenta + botón "Salir"
-  **solo visual** (stub de una futura auth). El frontend habla siempre con el backend real
-  vía `/api` (ver §6.A); no hay mock.
+- **Sin auth real todavía:** no hay login ni sesión (el stub de cuenta + "Salir" que tuvo el
+  header se quitó; hoy la barra muestra el **indicador de salud del scheduler**). El frontend
+  habla siempre con el backend real vía `/api` (ver §6.A); no hay mock.
+- **Terminología de la UI: "actualización"** (es el nombre del producto). Nada de "run" /
+  "refresh" / "corrida" en textos visibles: "Última actualización", "Actualización disparada",
+  "Tipo de actualización". (En código y logs, `run`/`refresh` está bien.)
 
 ---
 
@@ -79,21 +85,24 @@ src/
     http/         http-client.ts → HttpScheduleApi (baseUrl '/api', contra FastAPI)
   domain/         Lógica pura: frequency.ts (LAST_DAY=-1, formatFrequency, scheduleTime),
                   labels.ts (textos español, semana Lunes-primero), assert-never.ts
-  hooks/          useRemoteData (guard de respuestas obsoletas) → useWorkspaces/useDatasets/useTables
+  hooks/          useRemoteData (guard de respuestas obsoletas) → useWorkspaces/useDatasets/useTables;
+                  useHealth (pollea /health p/ el header), useRuns (historial del schedule en edición)
   state/          SelectionContext.tsx (reducer: workspace/dataset elegidos + tablas tildadas)
   components/     AppHeader (barra superior NAVY de marca RFDD: logo invertido + watermark de
-                  olas + título serif "Programador de Actualizaciones" + cuenta mock + "Salir"),
+                  olas + título serif "Programador de Actualizaciones" + pill de salud del
+                  scheduler — "Programador activo/detenido/Sin conexión", de useHealth),
                   TopSelect (selectores del header), TablesPanel(+TableRow),
-                  KpiStrip (tira de KPI tiles del modelo: tablas/programadas/en pausa/sin programar),
+                  KpiStrip (KPI tiles del modelo; CLICKEABLES: filtran la tabla por estado),
+                  UpcomingRuns (próximas 3 ejecuciones del modelo, de nextRunAt),
                   ScheduleForm/ (SchedulePanel = rail lateral + FrequencyFields + useScheduleForm),
                   ScheduleBadge, StatusIndicator, y primitivos en common/ (Icon, Skeleton,
                   EmptyState, ColumnHeader = banda de título común a las 3 columnas)
-  App.tsx         Layout one-pager de 3 columnas (`25% 37.5% 37.5%`): AppHeader (marca +
-                  cuenta) + grid [sidebar | tabla | rail]: COL 1 sidebar (selector Workspace
-                  arriba, Modelo debajo, y las KPIs del modelo apiladas verticalmente); COL 2 la
-                  tabla (lista); COL 3 el rail de programación (detalle). El cálculo de KPIs vive
-                  acá (se pasa a KpiStrip). Auto-selecciona el primer
-                  workspace/modelo.
+  App.tsx         Layout one-pager de 3 columnas (`25% 37.5% 37.5%`): AppHeader + grid
+                  [sidebar | tabla | rail]: COL 1 sidebar (selectores Workspace/Modelo, KPIs
+                  apiladas y Próximas ejecuciones); COL 2 la tabla (lista); COL 3 el rail.
+                  Acá viven: cálculo de KPIs, filtro por estado (KPI tiles), modo edición de
+                  membresía (editTables), stash/restore de la selección al entrar/cancelar
+                  edición, y el flash de éxito. Auto-selecciona el primer workspace/modelo.
 ```
 
 **Regla de oro del seam:** ningún archivo fuera de `src/api/` debe importar de `api/http/`.
@@ -114,10 +123,17 @@ un backend real con latencia.
   anterior; si el anterior queda vacío, se elimina) y el rail **avisa** qué tablas se mueven.
 - **UI one-pager de 3 columnas** (rediseño pedido por el usuario, reemplaza el master-detail de
   2 columnas): sin drill-down ni modal. **COL 1 (sidebar `App.module.css .sidebar`)**: selector
-  Workspace arriba, Modelo debajo, y las **4 KPIs del modelo apiladas** verticalmente (`KpiStrip`
-  transpuesto). **COL 2**: la tabla (lista). **COL 3**: el rail de programación (crear sobre las
-  seleccionadas / editar al clickear un badge). Anchos **`25% 37.5% 37.5%`** (`App.module.css
-  .layout`). Tocar la selección de tablas sale del modo edición.
+  Workspace arriba, Modelo debajo, las **4 KPIs del modelo apiladas** verticalmente (`KpiStrip`
+  transpuesto) y **Próximas ejecuciones** (`UpcomingRuns`). **COL 2**: la tabla (lista). **COL 3**:
+  el rail de programación (crear sobre las seleccionadas / editar al clickear un badge). Anchos
+  **`25% 37.5% 37.5%`** (`App.module.css .layout`).
+- **Modo edición con membresía editable** (paquete UX 2026-06-10; REEMPLAZA la regla anterior
+  "tocar la selección sale del modo edición"): en edición, **tocar una fila agrega/quita la tabla
+  de la programación editada** (`App.editTables`, se aplica con "Guardar cambios"; PATCH manda
+  `tables`). Al entrar a editar, la selección que hubiera se **guarda** y se **restaura al
+  cancelar** con "+ Nueva" (al guardar/eliminar se descarta) — así un misclick en el badge no
+  cuesta la selección. El aviso de reasignación corre también en edición e indica **de qué
+  programación** viene cada tabla.
 - **Encabezado por columna** (pedido del usuario, "para que se entienda qué hace cada columna"):
   las 3 columnas arrancan con un `<ColumnHeader>` (común, en `common/`) de **misma altura**
   (eyebrow gold en versalitas + título serif): **MODELO** "Workspace y modelo" · **TABLAS**
@@ -125,15 +141,34 @@ un backend real con latencia.
   botones (Programar / + Nueva·Eliminar·Guardar) en su slot `actions`.
 - **Diseño RFDD** (pedido por el usuario): se adoptó el design system de la firma
   (`rfdd-design-system/`) en reemplazo de la estética flat. Detalles de tokens/tipos en §2.
-- **Barra superior de marca (mock)**: `AppHeader` navy con logo RFDD, título serif
-  **"Programador de Actualizaciones"** (sin subtítulo) y una **cuenta de ejemplo** (avatar con
-  iniciales) + botón **"Salir"**. **Solo visual**: no hay auth/sesión.
+- **Barra superior de marca**: `AppHeader` navy con logo RFDD y título serif
+  **"Programador de Actualizaciones"** (sin subtítulo). A la derecha, el **pill de salud del
+  scheduler** ("Programador activo/detenido/Sin conexión", pollea `GET /health` cada 30 s vía
+  `useHealth`) — reemplazó al stub de cuenta + "Salir" que había antes. Sigue sin haber
+  auth/sesión.
 - **Formulario de programación rediseñado** (pedido del usuario, "más vistoso y moderno"):
-  segmented de frecuencia full-width (pill navy), "Habilitado" como **toggle switch**, **tarjeta de
-  Resumen en vivo** y el texto de tablas objetivo **integrado en el cuerpo** (tarjeta sutil / hint).
+  segmented de frecuencia full-width (pill navy), "Habilitado" como **toggle switch**, **Resumen
+  en vivo** y el texto de tablas objetivo **integrado en el cuerpo** (tarjeta sutil / hint).
   **Cards estilo RFDD** (pedido del usuario, reemplazan la barra de acento a la izquierda "estilo
-  Claude"): borde hairline + sombra navy sutil; el Resumen lleva **regla superior gold**
-  (`border-top`) como flourish de marca.
+  Claude"): borde hairline + sombra navy sutil. El **Resumen es un footer fijo del rail**
+  (paquete UX 2026-06-10: antes era una tarjeta al fondo del scroll y en notebooks quedaba bajo
+  el fold) con la **regla superior gold** como flourish de marca.
+- **"Habilitado" en edición aplica AL INSTANTE** (paquete UX 2026-06-10): el switch llama
+  `PUT /schedules/{id}/enabled` (endpoint que estaba implementado y sin usar) sin pasar por
+  Guardar; en alta solo define el estado inicial. Si el PUT falla, se revierte y se muestra el
+  error.
+- **Historial + motivo de fallo** (paquete UX 2026-06-10): en edición el rail muestra
+  **"Últimas actualizaciones"** (GET `/schedules/{id}/runs`, de `runs.jsonl`) con duración y el
+  **error** de las fallidas; va ARRIBA del formulario (quien entra tras un fallo busca el
+  "por qué"). El ✗ de la tabla también muestra el motivo en su tooltip (`lastRun.error`).
+- **Próxima ejecución visible** (paquete UX 2026-06-10): el backend deriva **`nextRunAt`** en
+  cada respuesta (de `nextrun.py`; pausado = ausente) y la UI lo muestra en la tarjeta EDITANDO
+  del rail, en el tooltip del badge y en **Próximas ejecuciones** del sidebar (top 3 del modelo).
+  Formato `formatNextRun` ("hoy 14:00", "mañana 06:00", "lun 07:00", "30/06 23:00"), SIEMPRE en
+  ART sin importar la TZ del navegador.
+- **KPI tiles clickeables** (paquete UX 2026-06-10): filtran la tabla por estado (Programadas /
+  En pausa / Sin programar; "Tablas" o re-click = quitar filtro). El filtro se compone con el de
+  nombre; el empty state del filtro trae botón "Quitar filtro".
 - **Tipo de refresh NO es elegible** (decisión del usuario, para evitar el footgun de `dataOnly`/
   `calculate`): **siempre `full`** (Completo = datos + recálculo). El rail ya no muestra un selector,
   solo un texto que explica el modo; `useScheduleForm` no guarda `refreshType` y `SchedulePanel`
@@ -147,12 +182,15 @@ un backend real con latencia.
   abajo) viven acá, no en una barra superior. La tabla (col 2) va sin encabezado propio.
 - **Selección de tablas por fila** (cambio pedido por el usuario): **no hay checkbox**; se
   selecciona/deselecciona **tocando cualquier parte de la fila** (`TableRow` → `onClick`), y la
-  selección se ve por el **resaltado** (tinte sky). La fila es focusable (Tab + Enter/Espacio) con
-  `aria-label`. El badge de programación frena la propagación para que **editar** no togglee la
-  selección. "Seleccionar todas / Quitar selección" es un **botón de texto** en la cabecera "Tabla".
+  selección se ve por el **resaltado** (tinte sky) + un **círculo de check** al inicio de la fila
+  (paquete UX 2026-06-10: ancla visual de "acá se selecciona"; el badge muestra un **lápiz al
+  hover** para diferenciar que él EDITA). La fila es focusable (Tab + Enter/Espacio) con
+  `aria-label` + `aria-selected`. El badge frena la propagación. "Seleccionar todas / Quitar
+  selección" (en edición: "Incluir todas / Quitar todas") es un **botón de texto** en la cabecera
+  "Tabla" y opera sobre las VISIBLES.
 - **Resaltado de filas en edición**: las filas de la programación que se edita se resaltan (tinte
-  sky + acento gold a la izquierda en la 1ª celda). `TablesPanel` recibe `editingTables` desde
-  `App`; ver `TableRow` (`rowChecked`/`rowEditing`).
+  sky + acento gold a la izquierda en la 1ª celda). `TablesPanel` recibe `editingTables` (la
+  membresía VIVA `App.editTables`) e `isEditing`; ver `TableRow` (`rowChecked`/`rowEditing`).
 - **Frecuencias (modelo y reglas, confirmadas con el usuario):**
   - **Diario** = horario + **días de la semana** (multi, default todos). `DailyFrequency.daysOfWeek?`.
   - **Cada N** = intervalo elegido en un **combobox** que incluye **sub-hora (15/20/30 min)** y horas
@@ -180,8 +218,16 @@ un backend real con latencia.
 
 - Frontend completo (layout **one-pager de 3 columnas**: barra de marca RFDD + grid
   [sidebar con selectores + KPIs | tabla (lista) | rail de programación]), badges de programación,
-  estados de último run (✓/✗/spinner/—), crear/editar/eliminar en el rail + toggle habilitar,
-  "Programar" con reasignación, skeletons de carga, empty states.
+  estados de última actualización (✓/✗/spinner/—), crear/editar/eliminar en el rail + toggle
+  habilitar, "Programar" con reasignación, skeletons de carga, empty states.
+- **Paquete UX/UI 2026-06-10** (revisión completa pedida por el usuario; detalles en §4):
+  `nextRunAt` + Próximas ejecuciones, historial con motivo de fallo (`/runs` + `lastRun.error`),
+  pill de salud del scheduler en el header (`/health`), membresía editable en edición +
+  stash/restore de la selección, pausa/reanudación al instante, KPI tiles-filtro, resumen como
+  footer fijo del rail, círculo de check por fila + lápiz en el badge, aviso de reasignación con
+  origen, flash de éxito, warning sub-hora, terminología "actualización", WelcomeGuide sin el
+  hack `scale(0.75)`, headers de columna más compactos (64px, título `--fs-xl`), fix del stacking
+  <1000px, `prefers-reduced-motion` en el spinner, y el kit RFDD pasado a **EB Garamond**.
 - **Diseño RFDD aplicado a fondo** (pedido explícito de que "se note más"): tema en
   `src/index.css` (tokens navy/sky/gold/paper + fuentes EB Garamond/Source Serif/Inter), **barra superior navy**
   (`AppHeader`) con logo invertido (`filter: brightness(0) invert(1)`), **watermark de olas**
@@ -191,17 +237,18 @@ un backend real con latencia.
   `public/favicon.svg`.
 - `npm run typecheck` y `npm run build` limpios. Build estático servible por nginx
   (`nginx.example.conf` incluido). Verificado en navegador real contra el backend.
-- **Tests unitarios del front (Vitest, `npm run test`): 24, todo verde.** Cubren la lógica pura:
+- **Tests unitarios del front (Vitest, `npm run test`): 30, todo verde.** Cubren la lógica pura:
   `domain/frequency.ts` (`formatFrequency`, `scheduleTime`, `hourlyIntervalMinutes`, `formatHour`),
-  `domain/time.ts` (`formatRelativeTime`) y la validación
+  `domain/time.ts` (`formatRelativeTime`, `formatNextRun`, `formatRunDuration`) y la validación
   `ScheduleForm/useScheduleForm.buildFrequency` (todas las frecuencias + bordes).
 - **Pulido UX (paquete 3)**: la tabla tiene **filtro por nombre** (input en el encabezado de la
   columna, sin acentos/mayúsculas; "Seleccionar todas" opera sobre las VISIBLES sin pisar la
-  selección de las ocultas; se resetea al cambiar de modelo vía `key={datasetId}`). El "Último
-  run" muestra **cuándo fue** ("hace 2 h", `domain/time.ts`; el polling de 30s lo mantiene
-  fresco). Los **errores del rail van arriba** (pegados al header donde vive el CTA). El copy del
-  `WelcomeGuide` se corrigió (ya no menciona el selector de tipo de refresh eliminado).
-- **Backend FastAPI (etapa A, ver §6.A): implementado en `backend/`.** Los 9 endpoints del
+  selección de las ocultas; se resetea al cambiar de modelo vía `key={datasetId}`). La columna
+  "Última actualización" muestra **cuándo fue** ("hace 2 h", `domain/time.ts`; el polling de 30s
+  lo mantiene fresco). Los **errores del rail van arriba** (pegados al header donde vive el CTA).
+  El copy del `WelcomeGuide` se corrigió (ya no menciona el selector de tipo de refresh
+  eliminado).
+- **Backend FastAPI (etapa A, ver §6.A): implementado en `backend/`.** Los 10 endpoints del
   contrato, JSON camelCase idéntico a `types.ts` (sin mapeo en `http-client.ts`), persistencia
   en archivo JSON, reasignación + invariante, validación de inputs. **Power BI-only**: requiere
   credenciales por `.env` (sin ellas no arranca). Probado de punta a punta con `TestClient` (con
@@ -215,7 +262,7 @@ un backend real con latencia.
   / strings de estado; ver §6.B).
 - **Tooling**: ESLint (flat config, reglas de hooks de React) con `npm run lint`; **CI** en
   `.github/workflows/ci.yml` corre en cada push/PR a `main` el frontend (lint + typecheck + test +
-  build) y el backend (pytest). Suite total: **55 pytest + 24 vitest**, todo verde sin credenciales.
+  build) y el backend (pytest). Suite total: **72 pytest + 30 vitest**, todo verde sin credenciales.
 
 ---
 
@@ -233,11 +280,17 @@ Implementa el contrato `ScheduleApi` (ver `src/api/client.ts`). El cliente
 | GET | `/workspaces/{workspaceId}/datasets` | — | `Dataset[]` |
 | GET | `/datasets/{datasetId}/tables` | — | `TableInfo[]` |
 | GET | `/datasets/{datasetId}/schedules` | — | `Schedule[]` |
+| GET | `/schedules/{id}/runs?limit=N` | — | `RunRecord[]` (historial, la más reciente primero; de `runs.jsonl`) |
 | POST | `/schedules` | `CreateScheduleInput` | `ScheduleMutationResult` |
-| PATCH | `/schedules/{id}` | `UpdateScheduleInput` | `ScheduleMutationResult` |
-| PUT | `/schedules/{id}/enabled` | `{ enabled }` | `ScheduleMutationResult` |
+| PATCH | `/schedules/{id}` | `UpdateScheduleInput` | `ScheduleMutationResult` (acepta `tables`) |
+| PUT | `/schedules/{id}/enabled` | `{ enabled }` | `ScheduleMutationResult` (switch "Habilitado" en edición) |
 | DELETE | `/schedules/{id}` | — | `ScheduleMutationResult` |
 | POST | `/schedules/{id}/run` | — | `ScheduleMutationResult` ("Ejecutar ahora"; 409 si ya corre, 503 sin scheduler) |
+
+Además: los `Schedule` de toda respuesta llevan **`nextRunAt`** derivado (ISO ART; ausente si
+está pausado; NUNCA se persiste — `routes._with_next_run` + `nextrun.display_next_run`), el
+`lastRun` puede traer **`error`** (motivo del fallo) y el front consume **`GET /health`**
+(`useHealth` → pill del header).
 
 Cómo quedó (ver `backend/README.md` para correr/deployar):
 - **`backend/app/models.py`**: modelos Pydantic espejando `types.ts`, serializados en camelCase
@@ -310,26 +363,35 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
     una mutación en vuelo). El rail en edición tiene botón **"▶ Ejecutar ahora"** y **Eliminar
     pide confirmación** (segundo click; se desarma al perder foco).
 - **`backend/app/executor.py`**: protocolo de dos fases `start(schedule)->token|None` y
-  `poll(schedule,token)->RunStatus` (el refresh real es asíncrono). `PowerBIRefreshExecutor`:
-  `refresh_dataset()` (devuelve `refreshId`) + `get_refresh_status()`; `_map_status` traduce el
-  estado de PBI a `RunStatus`.
+  `poll(schedule,token)->PollResult` (el refresh real es asíncrono). `PollResult = (status,
+  error)`: además del estado, viaja el **motivo del fallo** que informe Power BI
+  (`client.get_refresh_detail()` lo extrae de `messages` type=Error o `serviceExceptionJson`,
+  truncado a 300 chars). `_map_status` traduce el estado de PBI a `RunStatus`.
+- **Motivo de fallo en `lastRun.error`**: el scheduler registra POR QUÉ falló cada corrida
+  (excepción al disparar vía `_short_error`, error informado por PBI, "superó el tiempo máximo"
+  en timeout, "el servidor se reinició…" en `reconcile_orphans`) tanto en `lastRun` como en la
+  línea de `runs.jsonl`. La UI lo muestra en el tooltip del ✗ y en el historial del rail.
 - **Observabilidad**: los loggers `pbi.*` (scheduler/executor/powerbi) registran qué se dispara
   y el resultado de cada refresh (incluido el POST real con su HTTP status y `refreshId`); el
   setup está en `_configure_logging()` de `main.py`. Además, cada refresh **terminado** deja una
   línea en el **historial** `runs.jsonl` (`app/runlog.py`: append-only JSON Lines, thread-safe y
-  **blindado** —si falla escribir, no corta el scheduler). `lastRun` (en `schedules.json`) guarda
-  solo el ÚLTIMO run por schedule; `runs.jsonl` es el histórico completo.
+  **blindado** —si falla escribir, no corta el scheduler; `tail()` lo lee para
+  `GET /schedules/{id}/runs`). `lastRun` (en `schedules.json`) guarda solo el ÚLTIMO run por
+  schedule; `runs.jsonl` es el histórico completo.
 - **Health del scheduler**: el loop registra el último tick; `GET /health` devuelve
   `{ status, scheduler: { running, lastTickAt, healthy } }` (`healthy=False` si el hilo no corre o
-  el último tick quedó viejo) → monitoreable desde el VPS aunque la API siga viva.
+  el último tick quedó viejo) → monitoreable desde el VPS aunque la API siga viva, y **visible en
+  la UI** (pill del header vía `useHealth`).
 - Config: `PBI_SCHEDULER_ENABLED` (true), `PBI_SCHEDULER_TICK_SECONDS` (30), `PBI_TZ_OFFSET_HOURS`
   (-3), `PBI_REFRESH_POLL_TIMEOUT_MIN` (120), `PBI_RUNS_LOG_PATH` (`runs.jsonl`), `PBI_LOG_LEVEL` (`INFO`).
 - **Tests** (`backend/tests/`, `pip install -r requirements-dev.txt && pytest`): `nextrun` (todas las
-  frecuencias y bordes), scheduler con reloj controlado + executor falso (disparo, polling
-  InProgress→Completed/Failed, timeout, no re-disparo en vuelo, serialización por dataset), executor
-  (mapeo de estados + delegación al cliente con cliente falso), los 9 endpoints, y el health del
-  scheduler. Corren **sin credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 55 tests,
-  todo verde.
+  frecuencias y bordes, + `display_next_run`), scheduler con reloj controlado + executor falso
+  (disparo, polling InProgress→Completed/Failed, timeout, no re-disparo en vuelo, serialización
+  por dataset, captura del motivo de fallo), executor (mapeo de estados + propagación del error),
+  cliente PBI (`get_refresh_detail` con messages/serviceExceptionJson), runlog (`tail` filtrado y
+  ordenado), los 10 endpoints (incl. `/runs` y `nextRunAt` derivado/no persistido), y el health
+  del scheduler. Corren **sin credenciales** con una `FakeDataSource` (`tests/_fixtures.py`).
+  72 tests, todo verde.
 - **Validación de inputs (paquete "robustez")**: los modelos de input (`models.py`) validan rangos
   además de la UI (defensa en profundidad, porque la API no tiene auth): `time` "HH:mm",
   `startHour/endHour` 0–23 (y desde≤hasta), `daysOfWeek` 0–6, `dayOfMonth` 1–28 o -1, y ≥1 tabla

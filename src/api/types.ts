@@ -27,6 +27,8 @@ export interface LastRun {
   status: RunStatus
   /** Marca de tiempo ISO 8601. */
   timestamp: string
+  /** Motivo del fallo (texto corto), solo cuando status es 'Failed'. */
+  error?: string
 }
 
 // --- Frecuencia: unión discriminada por `kind` ---
@@ -92,6 +94,38 @@ export interface Schedule {
   refreshType: RefreshType
   enabled: boolean
   lastRun?: LastRun
+  /**
+   * Próxima corrida (ISO, en ART), DERIVADA por el backend en cada respuesta.
+   * Ausente si el schedule está pausado. Nunca la manda el cliente.
+   */
+  nextRunAt?: string
+}
+
+/** Una corrida TERMINADA del historial (GET /schedules/{id}/runs). */
+export interface RunRecord {
+  scheduleId: string
+  datasetId: string
+  workspaceId: string
+  tables: string[]
+  refreshType: string
+  refreshId?: string
+  status: RunStatus
+  /** ISO 8601. */
+  startedAt: string
+  /** ISO 8601. */
+  finishedAt: string
+  /** Motivo del fallo, si status es 'Failed' y se conoce. */
+  error?: string
+}
+
+/** Estado del backend + su scheduler (GET /health). */
+export interface HealthStatus {
+  status: string
+  scheduler: {
+    running: boolean
+    lastTickAt: string | null
+    healthy: boolean
+  }
 }
 
 // --- Inputs de mutación ---

@@ -43,6 +43,19 @@
   font-size: var(--fs-sm);
   color: var(--color-text);
 }
+.targetsHint {
+  font-size: var(--fs-xs);
+  color: var(--color-muted);
+}
+/* "Próxima ejecución" dentro de la tarjeta EDITANDO. */
+.nextRun {
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--rfdd-sky-300);
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
 .emptyHint {
   margin: 0;
   font-size: var(--fs-sm);
@@ -133,6 +146,11 @@
 .fieldHint {
   font-size: var(--fs-xs);
   color: var(--color-faint);
+}
+/* Aviso suave (no error): p. ej. intervalos sub-hora con refresh completo. */
+.fieldHintWarn {
+  font-size: var(--fs-xs);
+  color: var(--color-warn);
 }
 
 /* Selector de frecuencia: segmented full-width con track + pill activa navy. */
@@ -259,25 +277,18 @@
   transform: translateX(18px);
 }
 
-/* Resumen en vivo: tarjeta editorial RFDD con regla superior gold (flourish de
-   marca, usado con moderación). Sin barra de acento a la izquierda. */
-.summary {
+/* Resumen en vivo: footer FIJO del rail (no scrollea con el form), con la regla
+   superior gold como flourish de marca. Antes era una tarjeta al fondo del scroll
+   y en notebooks quedaba bajo el fold justo en las frecuencias largas. */
+.summaryBar {
+  flex: none;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
+  gap: 2px;
+  padding: var(--space-3) var(--space-5);
   border-top: 2px solid var(--color-gold);
-  border-radius: var(--radius-md);
   background: var(--color-surface);
-  box-shadow: var(--shadow-1);
-}
-.summaryLabel {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--color-gold-strong);
+  box-shadow: 0 -2px 8px rgba(14, 37, 67, 0.05);
 }
 .summaryText {
   font-size: var(--fs-md);
@@ -289,6 +300,61 @@
   color: var(--color-muted);
 }
 
+/* Historial de corridas (modo edición). */
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.historyEmpty {
+  font-size: var(--fs-sm);
+  color: var(--color-faint);
+}
+.historyList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-1);
+}
+.historyItem {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+}
+.historyItem + .historyItem {
+  border-top: 1px solid var(--color-border);
+}
+.historyWhen {
+  color: var(--color-text);
+  white-space: nowrap;
+}
+.historyError {
+  flex: 1 1 100%;
+  font-size: var(--fs-xs);
+  color: var(--color-fail);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.histOk {
+  color: var(--color-ok);
+  flex: none;
+  align-self: center;
+}
+.histFail {
+  color: var(--color-fail);
+  flex: none;
+  align-self: center;
+}
+
 .errors {
   margin: 0;
   padding-left: var(--space-4);
@@ -297,6 +363,15 @@
 }
 .submitError {
   color: var(--color-fail);
+  font-size: var(--fs-sm);
+}
+/* Confirmación de éxito de la última mutación (se esfuma sola desde App). */
+.flash {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid #bfd8c9;
+  border-radius: var(--radius);
+  background: #eaf4ee;
+  color: var(--color-ok);
   font-size: var(--fs-sm);
 }
 

@@ -13,6 +13,11 @@
     transform: rotate(360deg);
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
 
 /* --- Skeleton --- */
 .skeleton {
@@ -42,15 +47,17 @@
   color: var(--color-faint);
 }
 
-/* --- ColumnHeader (banda de título de cada columna; misma altura en las 3) --- */
+/* --- ColumnHeader (banda de título de cada columna; misma altura en las 3) ---
+   Más compacto que el original (80px) y con el título un escalón debajo del título
+   de marca del header: mejor jerarquía y más filas visibles en notebooks. */
 .colHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-3);
-  min-height: 80px;
-  padding: var(--space-3) var(--space-4);
+  min-height: 64px;
+  padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -71,7 +78,7 @@
 .colTitle {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--fs-2xl);
+  font-size: var(--fs-xl);
   font-weight: 600;
   line-height: 1.05;
   letter-spacing: -0.01em;

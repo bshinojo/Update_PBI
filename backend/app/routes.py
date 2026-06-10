@@ -1,16 +1,22 @@
-# Los 8 endpoints del contrato ScheduleApi (ver src/api/client.ts y CLAUDE.md §6.A).
+# Los endpoints del contrato ScheduleApi (ver src/api/client.ts y CLAUDE.md §6.A).
 # Las respuestas salen en camelCase (alias) para que HttpScheduleApi no mapee nada.
-# response_model_exclude_none: omitimos los campos None (scheduleId, lastRun, affected)
-# para que el JSON sea idéntico al del mock, donde esos campos son opcionales (TS `?`)
-# y van ausentes cuando no aplican. El front los trata por truthiness en ambos casos.
-from fastapi import APIRouter, Depends, HTTPException
+# response_model_exclude_none: omitimos los campos None (scheduleId, lastRun, affected,
+# nextRunAt) para que los opcionales de TS (`?`) vayan ausentes cuando no aplican.
+# El front los trata por truthiness en ambos casos.
+from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from .config import get_settings
 from .datasource import DataSource, TablesUnavailableError
-from .dependencies import get_datasource, get_scheduler, get_store
+from .dependencies import get_datasource, get_runlog, get_scheduler, get_store
+from .nextrun import art_tz, display_next_run
+from .runlog import RunLogger
 from .scheduler import AlreadyRunningError, Scheduler
 from .models import (
     CreateScheduleInput,
     Dataset,
+    RunRecord,
     Schedule,
     ScheduleMutationResult,
     SetEnabledInput,
@@ -21,6 +27,21 @@ from .models import (
 from .store import NotFoundError, ScheduleStore
 
 router = APIRouter()
+
+_TZ = art_tz(get_settings().tz_offset_hours)
+
+
+def _with_next_run(schedule: Schedule | None) -> Schedule | None:
+    """Deriva next_run_at (campo de SOLO respuesta) sobre la copia que devuelve el
+    store. El dato se recalcula en cada request: nunca se persiste ni queda viejo."""
+    if schedule is not None:
+        schedule.next_run_at = display_next_run(schedule, datetime.now(_TZ))
+    return schedule
+
+
+def _result_with_next_run(result: ScheduleMutationResult) -> ScheduleMutationResult:
+    _with_next_run(result.affected)
+    return result
 
 
 @router.get("/workspaces", response_model=list[Workspace])
@@ -53,7 +74,29 @@ def list_tables(dataset_id: str, store: ScheduleStore = Depends(get_store)):
     response_model_exclude_none=True,
 )
 def list_schedules(dataset_id: str, store: ScheduleStore = Depends(get_store)):
-    return store.list_schedules(dataset_id)
+    return [_with_next_run(s) for s in store.list_schedules(dataset_id)]
+
+
+@router.get(
+    "/schedules/{schedule_id}/runs",
+    response_model=list[RunRecord],
+    response_model_exclude_none=True,
+)
+def list_schedule_runs(
+    schedule_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    runlog: RunLogger = Depends(get_runlog),
+):
+    """Historial de corridas TERMINADAS de un schedule (la más reciente primero),
+    leído de runs.jsonl. Devuelve [] si nunca corrió (o si el historial está
+    desactivado). Las líneas con formato viejo/ilegible se saltean."""
+    out: list[RunRecord] = []
+    for rec in runlog.tail(schedule_id, limit=limit):
+        try:
+            out.append(RunRecord.model_validate(rec))
+        except ValueError:
+            continue  # línea de una versión vieja del log: mejor saltearla que romper
+    return out
 
 
 @router.post(
@@ -81,7 +124,7 @@ def create_schedule(
                 status_code=400,
                 detail=f"Estas tablas no existen en el modelo: {', '.join(missing)}.",
             )
-    return store.create(body)
+    return _result_with_next_run(store.create(body))
 
 
 @router.patch(
@@ -90,9 +133,29 @@ def create_schedule(
     response_model_exclude_none=True,
 )
 def update_schedule(schedule_id: str, body: UpdateScheduleInput,
-                    store: ScheduleStore = Depends(get_store)):
+                    store: ScheduleStore = Depends(get_store),
+                    ds: DataSource = Depends(get_datasource)):
+    # Si el PATCH cambia las tablas (la UI permite editar la membresía), validamos
+    # que existan en el modelo, igual que en el alta. Si no se pueden leer (RLS),
+    # no bloqueamos.
+    if body.tables is not None:
+        try:
+            sch = store.get(schedule_id)
+        except NotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        try:
+            known = {t.name for t in ds.list_tables(sch.dataset_id)}
+        except TablesUnavailableError:
+            known = None
+        if known is not None:
+            missing = [t for t in body.tables if t not in known]
+            if missing:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Estas tablas no existen en el modelo: {', '.join(missing)}.",
+                )
     try:
-        return store.update(schedule_id, body)
+        return _result_with_next_run(store.update(schedule_id, body))
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -105,7 +168,7 @@ def update_schedule(schedule_id: str, body: UpdateScheduleInput,
 def set_enabled(schedule_id: str, body: SetEnabledInput,
                 store: ScheduleStore = Depends(get_store)):
     try:
-        return store.set_enabled(schedule_id, body.enabled)
+        return _result_with_next_run(store.set_enabled(schedule_id, body.enabled))
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -117,7 +180,7 @@ def set_enabled(schedule_id: str, body: SetEnabledInput,
 )
 def delete_schedule(schedule_id: str, store: ScheduleStore = Depends(get_store)):
     try:
-        return store.delete(schedule_id)
+        return store.delete(schedule_id)  # affected=None: no hay next_run que derivar
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -159,4 +222,4 @@ def run_schedule_now(
             detail="El refresh se disparó, pero no se pudieron releer las tablas; "
             "el estado se va a actualizar solo en unos segundos.",
         )
-    return ScheduleMutationResult(affected=affected, tables=tables)
+    return ScheduleMutationResult(affected=_with_next_run(affected), tables=tables)

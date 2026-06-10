@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { isSuccess } from './api/remote-data'
 import type { Schedule, ScheduleMutationResult } from './api/types'
 import { AppHeader } from './components/AppHeader/AppHeader'
 import { ColumnHeader } from './components/common/ColumnHeader'
 import { KpiStrip, type KpiItem } from './components/KpiStrip/KpiStrip'
 import { SchedulePanel } from './components/ScheduleForm/SchedulePanel'
-import { TablesPanel } from './components/TablesPanel/TablesPanel'
+import { TablesPanel, type StatusFilter } from './components/TablesPanel/TablesPanel'
 import { TopSelect } from './components/TopSelect/TopSelect'
+import { UpcomingRuns } from './components/UpcomingRuns/UpcomingRuns'
 import { WelcomeGuide } from './components/WelcomeGuide/WelcomeGuide'
+import { formatFrequency } from './domain/frequency'
 import { useDatasets } from './hooks/useDatasets'
 import { useTables } from './hooks/useTables'
 import { useWorkspaces } from './hooks/useWorkspaces'
@@ -18,6 +20,9 @@ import styles from './App.module.css'
 // defecto. Muestra un instructivo en vez de tablas y no carga modelos.
 const GENERAL_ID = '__general__'
 const GENERAL_WORKSPACE = { id: GENERAL_ID, name: '--GENERAL--' }
+
+/** Cuánto vive el mensaje de éxito del rail antes de esfumarse solo. */
+const FLASH_MS = 6000
 
 export default function App() {
   return (
@@ -37,6 +42,17 @@ function Shell() {
 
   // Schedule que se está editando en el rail; null = "nueva programación".
   const [editing, setEditing] = useState<Schedule | null>(null)
+  // Membresía EDITABLE de la programación en edición: en este modo, tocar una fila
+  // agrega/quita la tabla de la programación (se guarda con "Guardar cambios").
+  const [editTables, setEditTables] = useState<string[]>([])
+  // Selección guardada al entrar a editar: un click en un badge no debe COSTARLE al
+  // usuario las tablas que ya tenía tildadas (misclick típico: badge dentro de la
+  // fila). "+ Nueva" (cancelar) la restaura; guardar/eliminar la descarta.
+  const stashedChecksRef = useRef<string[] | null>(null)
+  // Filtro de la tabla por estado, manejado por las KPI tiles del sidebar.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  // Mensaje de éxito de la última mutación (sobrevive al remount del rail).
+  const [flash, setFlash] = useState<string | null>(null)
 
   // "--GENERAL--" siempre primero: es la entrada por defecto.
   const workspaceOptions = useMemo(
@@ -71,19 +87,20 @@ function Shell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datasetOptions, selection.selectedDatasetId])
 
-  // Cambiar de modelo descarta la edición en curso.
+  // Cambiar de modelo descarta la edición en curso, la selección guardada y el filtro.
   useEffect(() => {
     setEditing(null)
+    setEditTables([])
+    stashedChecksRef.current = null
+    setStatusFilter('all')
   }, [selection.selectedDatasetId])
 
-  // Tablas del dataset actual que ya tienen schedule (para avisar reasignación al crear).
-  const scheduledTableNames = useMemo(() => {
-    const set = new Set<string>()
-    if (isSuccess(tables.state)) {
-      for (const t of tables.state.data.tables) if (t.scheduleId) set.add(t.name)
-    }
-    return set
-  }, [tables.state])
+  // El flash se esfuma solo.
+  useEffect(() => {
+    if (!flash) return
+    const id = setTimeout(() => setFlash(null), FLASH_MS)
+    return () => clearTimeout(id)
+  }, [flash])
 
   // Resumen del modelo para las KPIs del sidebar (presentacional, derivado del estado).
   const kpis = useMemo<KpiItem[] | null>(() => {
@@ -104,40 +121,113 @@ function Shell() {
       else scheduled++
     }
     return [
-      { label: 'Tablas', value: view.tables.length, note: 'en el modelo' },
-      { label: 'Programadas', value: scheduled, note: 'activas', noteTone: 'pos' },
-      { label: 'En pausa', value: paused, note: 'pausadas', noteTone: paused > 0 ? 'warn' : 'muted' },
-      { label: 'Sin programar', value: unscheduled, note: 'sin schedule', noteTone: 'muted' },
+      { id: 'all', label: 'Tablas', value: view.tables.length, note: 'en el modelo' },
+      { id: 'scheduled', label: 'Programadas', value: scheduled, note: 'activas', noteTone: 'pos' },
+      {
+        id: 'paused',
+        label: 'En pausa',
+        value: paused,
+        note: 'pausadas',
+        noteTone: paused > 0 ? 'warn' : 'muted',
+      },
+      {
+        id: 'unscheduled',
+        label: 'Sin programar',
+        value: unscheduled,
+        note: 'sin programación',
+        noteTone: 'muted',
+      },
     ]
   }, [tables.state])
 
   const checkedTableNames = [...selection.checkedTables]
-  const reassignTables = editing
-    ? []
-    : checkedTableNames.filter((n) => scheduledTableNames.has(n))
+  const targetTables = editing ? editTables : checkedTableNames
 
-  // Tocar la selección de tablas sale del modo edición: la acción del rail pasa a
-  // ser "programar las tildadas".
+  // Tablas del objetivo actual que pertenecen a OTRA programación y se moverían,
+  // con la etiqueta de su programación de origen (consentimiento informado).
+  const reassignments = useMemo(() => {
+    if (!isSuccess(tables.state)) return []
+    const view = tables.state.data
+    const byId = new Map(view.schedules.map((s) => [s.id, s]))
+    const target = new Set(targetTables)
+    const out: Array<{ table: string; from: string }> = []
+    for (const t of view.tables) {
+      if (!target.has(t.name) || !t.scheduleId) continue
+      if (editing && t.scheduleId === editing.id) continue
+      const s = byId.get(t.scheduleId)
+      out.push({ table: t.name, from: s ? formatFrequency(s.frequency) : 'otra programación' })
+    }
+    return out
+    // targetTables es derivado de editing/editTables/checkedTableNames.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tables.state, editing, editTables, selection.checkedTables])
+
+  // Tocar una fila: en modo edición agrega/quita la tabla de la programación que se
+  // edita; si no, selecciona/deselecciona para crear.
   function handleToggle(name: string) {
-    setEditing(null)
+    if (editing) {
+      setEditTables((prev) =>
+        prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
+      )
+      return
+    }
     selection.toggleTable(name)
   }
-  function handleSetChecked(names: string[]) {
-    setEditing(null)
+  function handleSetActive(names: string[]) {
+    if (editing) {
+      setEditTables(names)
+      return
+    }
     selection.setChecked(names)
   }
 
-  // Editar un schedule existente: limpia las tildadas para no mezclar la
-  // selección "para crear" con lo que se está editando.
+  // Editar un schedule existente: guarda la selección actual (para restaurarla si
+  // el usuario cancela) y carga la membresía editable.
   function handleEditBadge(schedule: Schedule) {
+    if (!editing && selection.checkedTables.size > 0) {
+      stashedChecksRef.current = [...selection.checkedTables]
+    }
     selection.clearChecks()
     setEditing(schedule)
+    setEditTables([...schedule.tables])
+  }
+
+  // Salir del modo edición. `restoreChecks` = volver a la selección que el usuario
+  // tenía antes de entrar (solo al CANCELAR; al guardar/eliminar se descarta).
+  function exitEdit(restoreChecks: boolean) {
+    setEditing(null)
+    setEditTables([])
+    if (restoreChecks && stashedChecksRef.current) {
+      selection.setChecked(stashedChecksRef.current)
+    }
+    stashedChecksRef.current = null
   }
 
   function handleSaved(result: ScheduleMutationResult) {
     tables.applyMutation(result)
-    selection.clearChecks()
-    setEditing(null)
+    if (result.affected === null) {
+      setFlash('Programación eliminada.')
+    } else if (editing) {
+      setFlash('Cambios guardados.')
+    } else {
+      const n = result.affected.tables.length
+      setFlash(`Programación creada para ${n} ${n === 1 ? 'tabla' : 'tablas'}.`)
+    }
+    if (editing) {
+      exitEdit(false)
+    } else {
+      selection.clearChecks()
+    }
+  }
+
+  // Resultado de acciones que NO salen del modo edición (Ejecutar ahora, pausar al
+  // toque): además de refrescar la vista, actualiza el schedule en edición para que
+  // el rail muestre el estado nuevo (lastRun / enabled / nextRunAt).
+  function handleRan(result: ScheduleMutationResult) {
+    tables.applyMutation(result)
+    if (result.affected && editing && result.affected.id === editing.id) {
+      setEditing(result.affected)
+    }
   }
 
   return (
@@ -166,8 +256,17 @@ function Shell() {
             {kpis ? (
               <div className={styles.sidebarKpis}>
                 <span className={styles.sidebarKpisLabel}>Resumen del modelo</span>
-                <KpiStrip items={kpis} />
+                <KpiStrip
+                  items={kpis}
+                  activeId={statusFilter}
+                  onSelect={(id) =>
+                    setStatusFilter((prev) => (prev === id ? 'all' : (id as StatusFilter)))
+                  }
+                />
               </div>
+            ) : null}
+            {isSuccess(tables.state) ? (
+              <UpcomingRuns schedules={tables.state.data.schedules} />
             ) : null}
           </div>
         </aside>
@@ -182,21 +281,26 @@ function Shell() {
               key={selection.selectedDatasetId ?? 'none'}
               data={tables.state}
               checked={selection.checkedTables}
-              editingTables={editing ? editing.tables : []}
+              editingTables={editTables}
+              isEditing={editing !== null}
+              statusFilter={statusFilter}
+              onClearStatusFilter={() => setStatusFilter('all')}
               onToggle={handleToggle}
-              onSetChecked={handleSetChecked}
+              onSetActive={handleSetActive}
               onEditBadge={handleEditBadge}
             />
             <SchedulePanel
               key={editing ? `edit-${editing.id}` : 'new'}
               editing={editing}
+              editTables={editTables}
               workspaceId={selection.selectedWorkspaceId}
               datasetId={selection.selectedDatasetId}
               checkedTableNames={checkedTableNames}
-              reassignTables={reassignTables}
+              reassignments={reassignments}
+              flash={flash}
               onSaved={handleSaved}
-              onRan={tables.applyMutation}
-              onCancelEdit={() => setEditing(null)}
+              onRan={handleRan}
+              onCancelEdit={() => exitEdit(true)}
             />
           </>
         )}

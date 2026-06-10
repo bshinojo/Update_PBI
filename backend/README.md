@@ -6,7 +6,7 @@ portable y liviano para el VPS) y lee / dispara refreshes contra **Power BI real
 
 ## Características
 
-- **9 endpoints** que espejan el contrato (ver tabla abajo), con JSON en **camelCase**
+- **10 endpoints** que espejan el contrato (ver tabla abajo), con JSON en **camelCase**
   idéntico a `src/api/types.ts` — el `HttpScheduleApi` del front no necesita mapear nada.
 - **Sin DB:** los schedules se guardan en `schedules.json` (configurable). Escritura atómica.
 - **Reasignación de tablas** e invariante "cada schedule ≥ 1 tabla".
@@ -49,16 +49,23 @@ end-to-end: el `HttpScheduleApi` real corre contra esta API sin cambios.
 | GET | `/workspaces/{workspaceId}/datasets` | — | `Dataset[]` |
 | GET | `/datasets/{datasetId}/tables` | — | `TableInfo[]` |
 | GET | `/datasets/{datasetId}/schedules` | — | `Schedule[]` |
+| GET | `/schedules/{id}/runs?limit=N` | — | `RunRecord[]` (historial de corridas terminadas, la más reciente primero; sale de `runs.jsonl`) |
 | POST | `/schedules` | `CreateScheduleInput` | `ScheduleMutationResult` |
-| PATCH | `/schedules/{id}` | `UpdateScheduleInput` | `ScheduleMutationResult` |
-| PUT | `/schedules/{id}/enabled` | `{ enabled }` | `ScheduleMutationResult` |
+| PATCH | `/schedules/{id}` | `UpdateScheduleInput` | `ScheduleMutationResult` (acepta `tables`: la UI edita la membresía) |
+| PUT | `/schedules/{id}/enabled` | `{ enabled }` | `ScheduleMutationResult` (lo usa el switch "Habilitado" en edición: pausa/reanuda al instante) |
 | DELETE | `/schedules/{id}` | — | `ScheduleMutationResult` |
 | POST | `/schedules/{id}/run` | — | `ScheduleMutationResult` ("Ejecutar ahora": dispara YA, fuera de horario; 409 si ya hay un refresh en curso, 503 si el scheduler no corre) |
+
+Los `Schedule` de las respuestas traen **`nextRunAt`** (próxima corrida en ISO ART,
+derivada con `nextrun.py` en cada respuesta; ausente si está pausado — nunca se
+persiste) y su `lastRun` puede traer **`error`** (motivo del fallo: excepción al
+disparar, mensaje de Power BI, timeout o reinicio del server con el refresh en vuelo).
 
 `GET /health` devuelve `{ status, scheduler }`, donde `scheduler` reporta `running`,
 `lastTickAt` y `healthy` (False si el hilo no corre o el último tick quedó viejo). Útil
 para monitoreo: si `scheduler.healthy` deja de ser `true`, los refreshes no se están
-disparando aunque la API siga viva.
+disparando aunque la API siga viva. **El frontend lo consume**: el header muestra
+"Programador activo / detenido / Sin conexión" polleándolo cada 30 s.
 
 ## Despliegue en el VPS (Hetzner / Linux)
 
