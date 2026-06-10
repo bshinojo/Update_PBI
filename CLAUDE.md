@@ -158,9 +158,12 @@ un backend real con latencia.
   Guardar; en alta solo define el estado inicial. Si el PUT falla, se revierte y se muestra el
   error.
 - **Historial + motivo de fallo** (paquete UX 2026-06-10): en edición el rail muestra
-  **"Últimas actualizaciones"** (GET `/schedules/{id}/runs`, de `runs.jsonl`) con duración y el
-  **error** de las fallidas; va ARRIBA del formulario (quien entra tras un fallo busca el
-  "por qué"). El ✗ de la tabla también muestra el motivo en su tooltip (`lastRun.error`).
+  **"Últimas actualizaciones"** (GET `/schedules/{id}/runs`, de `runs.jsonl`; la UI pide
+  **máx. 5**) con duración y el **error** de las fallidas; va ARRIBA del formulario (quien entra
+  tras un fallo busca el "por qué"). Es **colapsable** (botón chevron + contador, pedido del
+  usuario para que no empuje el formulario): arranca **cerrado**, y **se abre solo si la última
+  corrida falló** (también se auto-abre si pasa a Failed con el rail abierto; se puede volver a
+  cerrar). El ✗ de la tabla también muestra el motivo en su tooltip (`lastRun.error`).
 - **Próxima ejecución visible** (paquete UX 2026-06-10): el backend deriva **`nextRunAt`** en
   cada respuesta (de `nextrun.py`; pausado = ausente) y la UI lo muestra en la tarjeta EDITANDO
   del rail, en el tooltip del badge y en **Próximas ejecuciones** del sidebar (top 3 del modelo).

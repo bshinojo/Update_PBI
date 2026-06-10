@@ -300,11 +300,42 @@
   color: var(--color-muted);
 }
 
-/* Historial de corridas (modo edición). */
+/* Historial de corridas (modo edición). Colapsable: el toggle replica la
+   tipografía de los fieldLabel para integrarse al resto del formulario. */
 .history {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+.historyToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.historyToggle:hover {
+  color: var(--color-accent);
+}
+.chevron {
+  flex: none;
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+.chevronOpen {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
 }
 .historyEmpty {
   font-size: var(--fs-sm);

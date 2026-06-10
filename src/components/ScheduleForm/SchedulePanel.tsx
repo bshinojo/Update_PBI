@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, ApiError } from '../../api'
 import type {
   FrequencyKind,
@@ -387,49 +387,85 @@ export function SchedulePanel({
   )
 }
 
-/** Historial de corridas del schedule en edición (últimas 5, la más nueva primero). */
+/** Historial de corridas del schedule en edición (últimas 5, la más nueva primero).
+ * Colapsable: arranca cerrado para no empujar el formulario hacia abajo, y se abre
+ * solo cuando la última corrida FALLÓ (ahí el "por qué" es lo que se viene a buscar). */
 function RunHistory({ schedule }: { schedule: Schedule }) {
   // El timestamp del lastRun cambia cuando una corrida termina o arranca: con eso
   // como key de refresco, el historial se actualiza solo (vía el polling de 30s).
   const state = useRuns(schedule.id, schedule.lastRun?.timestamp)
+  const lastFailed = schedule.lastRun?.status === 'Failed'
+  const [open, setOpen] = useState(lastFailed)
+  useEffect(() => {
+    // Si una corrida pasa a Failed mientras el rail está abierto, el bloque se
+    // despliega solo. El usuario puede volver a cerrarlo (el effect solo corre
+    // cuando lastFailed CAMBIA, no en cada render).
+    if (lastFailed) setOpen(true)
+  }, [lastFailed])
+
+  const count = state.status === 'success' ? state.runs.length : null
 
   return (
     <div className={styles.history}>
-      <span className={styles.fieldLabel}>Últimas actualizaciones</span>
-      {state.status === 'loading' ? (
-        <span className={styles.historyEmpty}>Cargando…</span>
-      ) : state.status === 'error' ? (
-        <span className={styles.historyEmpty}>No se pudo cargar el historial.</span>
-      ) : state.runs.length === 0 ? (
-        <span className={styles.historyEmpty}>
-          Sin actualizaciones todavía: corre a su hora, o probá "Ejecutar ahora".
-        </span>
-      ) : (
-        <ul className={styles.historyList}>
-          {state.runs.map((r) => {
-            const duration = formatRunDuration(r.startedAt, r.finishedAt)
-            return (
-              <li key={`${r.startedAt}-${r.finishedAt}`} className={styles.historyItem}>
-                <Icon
-                  name={r.status === 'Completed' ? 'check' : r.status === 'Failed' ? 'x' : 'spinner'}
-                  size={13}
-                  className={r.status === 'Completed' ? styles.histOk : styles.histFail}
-                  title={RUN_STATUS_ES[r.status]}
-                />
-                <span className={styles.historyWhen}>
-                  {formatRelativeTime(r.startedAt)}
-                  {duration ? ` · duró ${duration}` : ''}
-                </span>
-                {r.status === 'Failed' && r.error ? (
-                  <span className={styles.historyError} title={r.error}>
-                    {r.error}
+      <button
+        type="button"
+        className={styles.historyToggle}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        <svg
+          className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
+          viewBox="0 0 24 24"
+          width="12"
+          height="12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m9 6 6 6-6 6" />
+        </svg>
+        Últimas actualizaciones
+        {count !== null && count > 0 ? ` (${count})` : ''}
+      </button>
+      {open ? (
+        state.status === 'loading' ? (
+          <span className={styles.historyEmpty}>Cargando…</span>
+        ) : state.status === 'error' ? (
+          <span className={styles.historyEmpty}>No se pudo cargar el historial.</span>
+        ) : state.runs.length === 0 ? (
+          <span className={styles.historyEmpty}>
+            Sin actualizaciones todavía: corre a su hora, o probá "Ejecutar ahora".
+          </span>
+        ) : (
+          <ul className={styles.historyList}>
+            {state.runs.map((r) => {
+              const duration = formatRunDuration(r.startedAt, r.finishedAt)
+              return (
+                <li key={`${r.startedAt}-${r.finishedAt}`} className={styles.historyItem}>
+                  <Icon
+                    name={r.status === 'Completed' ? 'check' : r.status === 'Failed' ? 'x' : 'spinner'}
+                    size={13}
+                    className={r.status === 'Completed' ? styles.histOk : styles.histFail}
+                    title={RUN_STATUS_ES[r.status]}
+                  />
+                  <span className={styles.historyWhen}>
+                    {formatRelativeTime(r.startedAt)}
+                    {duration ? ` · duró ${duration}` : ''}
                   </span>
-                ) : null}
-              </li>
-            )
-          })}
-        </ul>
-      )}
+                  {r.status === 'Failed' && r.error ? (
+                    <span className={styles.historyError} title={r.error}>
+                      {r.error}
+                    </span>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+        )
+      ) : null}
     </div>
   )
 }
