@@ -6,7 +6,7 @@ portable y liviano para el VPS) y lee / dispara refreshes contra **Power BI real
 
 ## Características
 
-- **8 endpoints** que espejan el contrato (ver tabla abajo), con JSON en **camelCase**
+- **9 endpoints** que espejan el contrato (ver tabla abajo), con JSON en **camelCase**
   idéntico a `src/api/types.ts` — el `HttpScheduleApi` del front no necesita mapear nada.
 - **Sin DB:** los schedules se guardan en `schedules.json` (configurable). Escritura atómica.
 - **Reasignación de tablas** e invariante "cada schedule ≥ 1 tabla".

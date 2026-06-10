@@ -13,36 +13,35 @@ proyecto**, lo que **ya está hecho** y lo que **falta**.
 ## 1. Qué es este proyecto (la idea total)
 
 Herramienta **interna** para que los consultores de la firma programen **refreshes
-selectivos** de modelos semánticos de Power BI (por tabla, con distinta frecuencia y tipo
-de refresh) **sin escribir código**.
+selectivos** de modelos semánticos de Power BI (por tabla, con distinta frecuencia)
+**sin escribir código**.
 
-Alcance completo imaginado (no todo está construido todavía):
+Las tres piezas del proyecto (todas implementadas):
 
-1. **Frontend** (esta primera etapa, ✅ hecha): capa gráfica para armar/editar las
-   programaciones de forma visual.
-2. **Backend FastAPI** (⏳ falta): expone la API real, guarda los schedules en una base, se
-   integra con Power BI (REST API / XMLA) para listar workspaces/datasets/tablas y para
-   **ejecutar** los refreshes selectivos (enhanced refresh API: lista de tablas + tipo).
-3. **Scheduler** (⏳ falta, parte del backend): un cron/worker que dispara cada schedule a
-   su hora y registra el resultado del último run.
+1. **Frontend** (✅): capa gráfica one-pager para armar/editar las programaciones.
+2. **Backend FastAPI** (✅): API real; guarda los schedules en un archivo JSON; se integra con
+   Power BI (REST API + XMLA/DAX) para listar workspaces/datasets/tablas y para **ejecutar** los
+   refreshes selectivos (enhanced refresh API: lista de tablas).
+3. **Scheduler** (✅, dentro del backend): worker que dispara cada schedule a su hora, **pollea**
+   el refresh asíncrono y registra el resultado del último run.
 
-> Estado actual: **frontend + backend FastAPI implementados y cableados** (el front habla
-> con el backend vía `/api`). El backend lee y dispara los refreshes contra **Power BI real**
-> y corre el scheduler. **No hay mock ni modo seed**: se quitaron en la limpieza (la app es
-> Power BI-only y requiere credenciales). Lo único pendiente/fuera de alcance es la
-> **autenticación** real (la cuenta del header es un stub visual).
+> Estado actual: **frontend + backend FastAPI + scheduler implementados y cableados** (el front
+> habla con el backend vía `/api`). El backend lee y dispara los refreshes contra **Power BI real**.
+> **No hay mock ni modo seed**: la app es Power BI-only y requiere credenciales para arrancar. Lo
+> único fuera de alcance es la **autenticación** real (la cuenta del header es un stub visual). Lo
+> único pendiente de verificar contra el tenant real es el **disparo del refresh end-to-end** (las
+> lecturas y el listado de tablas ya se verificaron — ver §6).
 
-### Prompt original (para no perder la intención)
+### Idea original (para no perder la intención)
 
-> Construir la capa gráfica (solo frontend, por ahora) de una herramienta interna para que
-> consultores programen refreshes selectivos de modelos semánticos de Power BI sin escribir
-> código. Stack: React + Vite + TypeScript, sin frameworks de UI pesados, estética flat y
-> limpia (bordes finos, blanco, sin gradientes ni sombras). Debe correr en dev en Windows y
-> deployarse en un VPS Linux (Hetzner) con nginx sirviendo un build estático; evitar paths
-> de Windows, usar rutas relativas y scripts npm cross-platform. Backend mockeado en
-> `src/api/` con interfaces TS + implementación mock (datos inventados, delays 300-600ms),
-> reemplazable por FastAPI sin tocar componentes. UI en español, con estados de carga
+> Herramienta interna para que consultores programen refreshes selectivos de modelos semánticos de
+> Power BI sin escribir código. Stack: React + Vite + TypeScript, sin frameworks de UI pesados.
+> Correr en dev en Windows y deployarse en un VPS Linux (Hetzner) con nginx sirviendo un build
+> estático; cross-platform (rutas relativas, scripts npm). UI en español, con estados de carga
 > (skeletons) y de "sin resultados", componentes chicos y separados.
+>
+> *(El arranque original tenía un backend mockeado en `src/api/`; se reemplazó por el FastAPI real
+> y luego se eliminó el mock por completo — la app es Power BI-only.)*
 
 ---
 
@@ -52,12 +51,11 @@ Alcance completo imaginado (no todo está construido todavía):
   Redux, Zustand, React Query, UI kit ni librería de íconos/fechas.
 - **CSS Modules + design tokens** en `src/index.css`. **Lenguaje de marca RFDD** (Romano,
   Fiocca & Díaz Delfino): ancla **navy `#0E2543`**, secundario **sky**, acento **gold** con
-  moderación, fondo **paper `#F7F6F2`**; tipos **Cormorant Garamond** (títulos) + **Inter**
-  (UI/números tabulares); labels en **versalitas tracked**; **sombras navy sutiles** y bordes
-  hairline 1px. **Reemplaza la estética "flat por ausencia" original** (que prohibía sombras y
-  serif). Fuente de verdad de tokens: `rfdd-design-system/project/colors_and_type.css`; el
-  `:root` de `src/index.css` **remapea** los tokens de la app a valores RFDD (por eso
-  re-tematizar fue casi solo tocar `index.css`, sin reescribir componentes).
+  moderación, fondo **paper `#F7F6F2`**; tipos **EB Garamond** (display/títulos) + **Source Serif 4**
+  (lead) + **Inter** (UI/números tabulares); labels en **versalitas tracked**; **sombras navy
+  sutiles** y bordes hairline 1px. **Reemplaza la estética "flat por ausencia" original** (que
+  prohibía sombras y serif). Fuente de verdad de tokens: `rfdd-design-system/project/colors_and_type.css`;
+  el `:root` de `src/index.css` **remapea** los tokens de la app a valores RFDD.
 - **UI 100% en español.**
 - **Cross-platform (Windows dev → Linux/nginx):** `base: './'` en `vite.config.ts`,
   `forceConsistentCasingInFileNames` en `tsconfig.json`, `.gitattributes` con LF. Nada de
@@ -185,12 +183,12 @@ un backend real con latencia.
   estados de último run (✓/✗/spinner/—), crear/editar/eliminar en el rail + toggle habilitar,
   "Programar" con reasignación, skeletons de carga, empty states.
 - **Diseño RFDD aplicado a fondo** (pedido explícito de que "se note más"): tema en
-  `src/index.css` (tokens navy/sky/gold/paper + fuentes Cormorant+Inter), **barra superior navy**
+  `src/index.css` (tokens navy/sky/gold/paper + fuentes EB Garamond/Source Serif/Inter), **barra superior navy**
   (`AppHeader`) con logo invertido (`filter: brightness(0) invert(1)`), **watermark de olas**
   (`pattern-waves.svg`) y eyebrow gold; patrón **eyebrow (gold tracked) + título serif** en los
   headers de ambos paneles; **tira de KPI tiles** (`KpiStrip`) con el resumen del modelo; contador
   de selección como chip sky. Assets en `src/components/AppHeader/` (logo + olas), emblema como
-  `public/favicon.svg`. Verificado por captura headless (typecheck + build limpios).
+  `public/favicon.svg`.
 - `npm run typecheck` y `npm run build` limpios. Build estático servible por nginx
   (`nginx.example.conf` incluido). Verificado en navegador real contra el backend.
 - **Tests unitarios del front (Vitest, `npm run test`): 24, todo verde.** Cubren la lógica pura:
@@ -203,27 +201,31 @@ un backend real con latencia.
   run" muestra **cuándo fue** ("hace 2 h", `domain/time.ts`; el polling de 30s lo mantiene
   fresco). Los **errores del rail van arriba** (pegados al header donde vive el CTA). El copy del
   `WelcomeGuide` se corrigió (ya no menciona el selector de tipo de refresh eliminado).
-- **Backend FastAPI (etapa A, ver §6.A): implementado en `backend/`.** Los 8 endpoints del
+- **Backend FastAPI (etapa A, ver §6.A): implementado en `backend/`.** Los 9 endpoints del
   contrato, JSON camelCase idéntico a `types.ts` (sin mapeo en `http-client.ts`), persistencia
-  en archivo JSON, reasignación + invariante. **Power BI-only**: requiere credenciales por
-  `.env` (sin ellas no arranca). Probado de punta a punta con `TestClient` (con `FakeDataSource`
-  de test, sin credenciales) y con uvicorn real. **Lecturas verificadas contra Power BI real (2026-06-06):**
-  auth, workspaces, datasets y tablas (XMLA). **Falta sólo el refresh real** (ver §6.B).
+  en archivo JSON, reasignación + invariante, validación de inputs. **Power BI-only**: requiere
+  credenciales por `.env` (sin ellas no arranca). Probado de punta a punta con `TestClient` (con
+  `FakeDataSource`, sin credenciales) y con uvicorn real. **Lecturas y listado de tablas (incl.
+  fallback Scanner para RLS) verificados contra Power BI real** (2026-06-06/08).
 - **Scheduler (etapa B, ver §6.B): implementado en `backend/`.** Worker en segundo plano que
   dispara los schedules a su hora (ART), **pollea** los refreshes asíncronos en vuelo y registra
   `lastRun` (`InProgress`→`Completed/Failed`, con timeout anti-colgados). Lógica de "próxima
-  corrida" pura y testeada (`nextrun.py`), executor con protocolo `start`/`poll`, suite `pytest`
-  (35 tests, todo verde sin credenciales). **Falta verificar el refresh real contra Power BI**
-  (nombres de header/estado del refresh, ver §6.B); las lecturas ya se verificaron (2026-06-06).
+  corrida" pura y testeada (`nextrun.py`), executor con protocolo `start`/`poll`. **Falta solo
+  verificar el DISPARO del refresh end-to-end contra Power BI real** (nombres del header `Location`
+  / strings de estado; ver §6.B).
+- **Tooling**: ESLint (flat config, reglas de hooks de React) con `npm run lint`; **CI** en
+  `.github/workflows/ci.yml` corre en cada push/PR a `main` el frontend (lint + typecheck + test +
+  build) y el backend (pytest). Suite total: **55 pytest + 24 vitest**, todo verde sin credenciales.
 
 ---
 
-## 6. Lo que FALTA (próximos pasos, en orden)
+## 6. Detalle de implementación por etapa (A/B ✅) y lo que falta
 
-### A) Backend FastAPI — ✅ HECHO (en `backend/`), salvo la verificación con credenciales
+### A) Backend FastAPI — ✅ HECHO (en `backend/`)
 
-Implementa el contrato `ScheduleApi` (ver `src/api/client.ts`). El stub
-`src/api/http/http-client.ts` espera estos endpoints (baseUrl por defecto `/api`):
+Implementa el contrato `ScheduleApi` (ver `src/api/client.ts`). El cliente
+`src/api/http/http-client.ts` (única implementación, ya no un stub) usa estos endpoints
+(baseUrl `/api`):
 
 | Método | Endpoint | Body | Devuelve |
 |---|---|---|---|
@@ -270,12 +272,11 @@ Cómo quedó (ver `backend/README.md` para correr/deployar):
 `cd backend && ./run.sh` + `npm run dev` (Vite proxya `/api`→backend, ver `vite.config.ts`).
 En PROD: nginx proxya `/api/`→backend. **Ningún componente del front cambia.**
 
-> ✅ **Lecturas verificadas contra Power BI real (2026-06-06)** con un service principal:
-> auth client-credentials, `GET /workspaces`, `/datasets` y `/tables` (este último vía DAX
-> `INFO.VIEW.TABLES()` — **XMLA está habilitado** en la capacidad de prueba), y `DELETE /schedules`.
-> Falta sólo disparar un **refresh real** (ver §6.B). Las credenciales van en `backend/.env`
-> (gitignored); `PBI_CLIENT_SECRET` es el **Value** del secret, no el *Secret ID* (un GUID → da
-> `AADSTS7000215`).
+> ✅ **Lecturas verificadas contra Power BI real (2026-06-06/08)** con un service principal:
+> auth client-credentials, `GET /workspaces`, `/datasets`, `/tables` (vía DAX `INFO.VIEW.TABLES()`,
+> con **XMLA habilitado**, y el fallback Scanner para modelos con RLS). Las credenciales van en
+> `backend/.env` (gitignored); `PBI_CLIENT_SECRET` es el **Value** del secret, no el *Secret ID*
+> (un GUID → da `AADSTS7000215`). **Pendiente:** el disparo del refresh end-to-end (ver §6.B).
 
 ### B) Scheduler / ejecución real — ✅ HECHO (en `backend/`)
 
@@ -318,35 +319,46 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
   línea en el **historial** `runs.jsonl` (`app/runlog.py`: append-only JSON Lines, thread-safe y
   **blindado** —si falla escribir, no corta el scheduler). `lastRun` (en `schedules.json`) guarda
   solo el ÚLTIMO run por schedule; `runs.jsonl` es el histórico completo.
+- **Health del scheduler**: el loop registra el último tick; `GET /health` devuelve
+  `{ status, scheduler: { running, lastTickAt, healthy } }` (`healthy=False` si el hilo no corre o
+  el último tick quedó viejo) → monitoreable desde el VPS aunque la API siga viva.
 - Config: `PBI_SCHEDULER_ENABLED` (true), `PBI_SCHEDULER_TICK_SECONDS` (30), `PBI_TZ_OFFSET_HOURS`
   (-3), `PBI_REFRESH_POLL_TIMEOUT_MIN` (120), `PBI_RUNS_LOG_PATH` (`runs.jsonl`), `PBI_LOG_LEVEL` (`INFO`).
 - **Tests** (`backend/tests/`, `pip install -r requirements-dev.txt && pytest`): `nextrun` (todas las
   frecuencias y bordes), scheduler con reloj controlado + executor falso (disparo, polling
   InProgress→Completed/Failed, timeout, no re-disparo en vuelo, serialización por dataset), executor
-  (mapeo de estados + delegación al cliente con cliente falso), y los 8 endpoints. Corren **sin
-  credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 55 tests, todo verde.
+  (mapeo de estados + delegación al cliente con cliente falso), los 9 endpoints, y el health del
+  scheduler. Corren **sin credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 55 tests,
+  todo verde.
 - **Validación de inputs (paquete "robustez")**: los modelos de input (`models.py`) validan rangos
   además de la UI (defensa en profundidad, porque la API no tiene auth): `time` "HH:mm",
   `startHour/endHour` 0–23 (y desde≤hasta), `daysOfWeek` 0–6, `dayOfMonth` 1–28 o -1, y ≥1 tabla
   (`CreateScheduleInput`/`UpdateScheduleInput`). `POST /schedules` además **rechaza con 400** las
   tablas que no existan en el modelo (si las tablas no se pueden leer por RLS, no bloquea).
 
-> ✅ **Lecturas y refresh verificados contra Power BI real (2026-06-06)**: auth client-credentials,
-> `/workspaces`, `/datasets`, `/tables` (XMLA/DAX `INFO.VIEW.TABLES()`) y el enhanced refresh
-> (`refresh_dataset` → `refreshId` del header `Location`) + polling de estado. Detalles en la
-> memoria del proyecto.
+> ⚠️ **Pendiente de verificar contra Power BI real:** el **disparo del refresh end-to-end**
+> (`refresh_dataset` → leer el `refreshId` del header `Location`/`x-ms-request-id`, y los strings de
+> estado `Unknown/Completed/Failed`). La **lógica** está implementada y testeada con cliente falso;
+> solo falta confirmar los nombres de header/estado contra el servicio (son ajustes en
+> `powerbi/client.py`). Las **lecturas y el listado de tablas** sí están verificados (2026-06-06/08).
 
-### C) Mejoras conocidas (opcionales)
-- **Autenticación** (login, sesión) — explícitamente fuera de alcance de la etapa 1.
-- Updates optimistas, edición del set de tablas desde el rail de edición.
+### C) Mejoras conocidas (opcionales / fuera de alcance)
+- **Autenticación** (login, sesión) — explícitamente fuera de alcance.
+- **Concurrencia optimista** (409 si dos usuarios editan el mismo schedule): hoy es last-write-wins
+  con 1 worker; aceptable a esta escala.
+- **Candado de instancia única** (file lock) para blindar contra correr con `--workers >1`.
+- **Tablas agrupadas por origen** (parsear el M de cada tabla) — analizado y descartado: se mantiene
+  la funcionalidad **por tabla**. Ver historial del chat / memoria.
 
 ---
 
 ## 7. Referencia rápida: tipos de refresh
 
-`full` = trae datos + recalcula (default). `dataOnly` = solo trae datos, no recalcula.
-`calculate` = no trae datos, solo recalcula lo derivado. Patrón eficiente en modelos grandes:
-varios `dataOnly` + un único `calculate` al final.
+> La UI usa **siempre `full`** (decisión de §4). Esto es solo referencia conceptual.
+
+`full` = trae datos + recalcula. `dataOnly` = solo trae datos, no recalcula. `calculate` = no trae
+datos, solo recalcula lo derivado. (`dataOnly`/`calculate` siguen en el tipo `RefreshType` y los
+acepta el backend, pero la UI no los ofrece, para evitar dejar visuales sin procesar.)
 
 ---
 
@@ -371,7 +383,7 @@ config del backend va en `backend/.env` (prefijo `PBI_`).
 ## 9. Convenciones al trabajar acá
 
 - Respetar el **seam**: no importar de `api/http` fuera de `src/api/` (la app usa `{ api }`).
-- Mantener el **lenguaje de marca RFDD** (navy/sky/gold/paper, Cormorant+Inter, labels en
+- Mantener el **lenguaje de marca RFDD** (navy/sky/gold/paper, EB Garamond/Source Serif/Inter, labels en
   versalitas, sombras navy sutiles; ver §2 y `rfdd-design-system/`) y la **UI en español**.
 - Cada nivel de navegación maneja **loading + empty + error** (vía `RemoteData`).
 - Switches sobre uniones discriminadas se cierran con `assertNever` (exhaustividad).

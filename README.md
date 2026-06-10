@@ -12,8 +12,8 @@ modelos semánticos de Power BI (por tabla, con distinta frecuencia y tipo de re
 ## Stack
 
 - React + Vite + TypeScript
-- CSS Modules + design tokens (lenguaje de marca **RFDD**: navy/sky/gold/paper, Cormorant +
-  Inter; ver `rfdd-design-system/`), sin frameworks de UI
+- CSS Modules + design tokens (lenguaje de marca **RFDD**: navy/sky/gold/paper, EB Garamond +
+  Source Serif 4 + Inter; ver `rfdd-design-system/`), sin frameworks de UI
 - Sin router, sin librerías de estado ni de data-fetching: hooks propios sobre un tipo
   `RemoteData<T>`
 
