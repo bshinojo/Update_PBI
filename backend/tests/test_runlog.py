@@ -133,3 +133,31 @@ def test_tail_skips_unreadable_lines(tmp_path):
 
 def test_tail_missing_file_returns_empty(tmp_path):
     assert RunLog(str(tmp_path / "no-existe.jsonl")).tail("a") == []
+
+
+def test_tail_all_orders_by_finished_desc_across_schedules(tmp_path):
+    rl = RunLog(str(tmp_path / "runs.jsonl"))
+    rl.append({"scheduleId": "a", "finishedAt": "2026-06-01T10:00:00-03:00", "n": 1})
+    rl.append({"scheduleId": "b", "finishedAt": "2026-06-03T10:00:00-03:00", "n": 2})
+    rl.append({"scheduleId": "a", "finishedAt": "2026-06-02T10:00:00-03:00", "n": 3})
+    # Mezcla schedules y ordena por finishedAt desc (no por orden de escritura).
+    assert [r["n"] for r in rl.tail_all()] == [2, 3, 1]
+    assert [r["n"] for r in rl.tail_all(limit=2)] == [2, 3]
+
+
+def test_tail_all_falls_back_to_started_at(tmp_path):
+    rl = RunLog(str(tmp_path / "runs.jsonl"))
+    rl.append({"scheduleId": "a", "finishedAt": "2026-06-01T10:00:00-03:00", "n": 1})
+    rl.append({"scheduleId": "b", "startedAt": "2026-06-05T10:00:00-03:00", "n": 2})  # sin finishedAt
+    assert [r["n"] for r in rl.tail_all()] == [2, 1]
+
+
+def test_tail_all_missing_file_and_bad_lines(tmp_path):
+    path = tmp_path / "runs.jsonl"
+    assert RunLog(str(path)).tail_all() == []
+    rl = RunLog(str(path))
+    rl.append({"scheduleId": "a", "finishedAt": "2026-06-01T10:00:00-03:00", "n": 1})
+    with path.open("a", encoding="utf-8") as f:
+        f.write("no es json\n")
+    rl.append({"scheduleId": "b", "finishedAt": "2026-06-02T10:00:00-03:00", "n": 2})
+    assert [r["n"] for r in rl.tail_all()] == [2, 1]

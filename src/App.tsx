@@ -3,6 +3,7 @@ import { isSuccess } from './api/remote-data'
 import type { Schedule, ScheduleMutationResult } from './api/types'
 import { AppHeader } from './components/AppHeader/AppHeader'
 import { ColumnHeader } from './components/common/ColumnHeader'
+import { InformePanel } from './components/InformePanel/InformePanel'
 import { KpiStrip, type KpiItem } from './components/KpiStrip/KpiStrip'
 import { SchedulePanel } from './components/ScheduleForm/SchedulePanel'
 import { TablesPanel, type StatusFilter } from './components/TablesPanel/TablesPanel'
@@ -21,6 +22,11 @@ import styles from './App.module.css'
 const GENERAL_ID = '__general__'
 const GENERAL_WORKSPACE = { id: GENERAL_ID, name: '--GENERAL--' }
 
+// Workspace sintético de INFORME: muestra el historial e info de las actualizaciones
+// (resumen visual + tabla de las últimas), en vez de tablas/rail. Tampoco carga modelos.
+const INFORME_ID = '__informe__'
+const INFORME_WORKSPACE = { id: INFORME_ID, name: '--INFORME--' }
+
 /** Cuánto vive el mensaje de éxito del rail antes de esfumarse solo. */
 const FLASH_MS = 6000
 
@@ -36,9 +42,11 @@ function Shell() {
   const selection = useSelection()
   const workspaces = useWorkspaces()
   const isGeneral = selection.selectedWorkspaceId === GENERAL_ID
-  // En "--GENERAL--" no hay modelos reales que cargar.
-  const datasets = useDatasets(isGeneral ? null : selection.selectedWorkspaceId)
-  const tables = useTables(isGeneral ? null : selection.selectedDatasetId)
+  const isInforme = selection.selectedWorkspaceId === INFORME_ID
+  // En "--GENERAL--" / "--INFORME--" no hay modelos reales que cargar.
+  const isSpecial = isGeneral || isInforme
+  const datasets = useDatasets(isSpecial ? null : selection.selectedWorkspaceId)
+  const tables = useTables(isSpecial ? null : selection.selectedDatasetId)
 
   // Schedule que se está editando en el rail; null = "nueva programación".
   const [editing, setEditing] = useState<Schedule | null>(null)
@@ -54,9 +62,14 @@ function Shell() {
   // Mensaje de éxito de la última mutación (sobrevive al remount del rail).
   const [flash, setFlash] = useState<string | null>(null)
 
-  // "--GENERAL--" siempre primero: es la entrada por defecto.
+  // "--GENERAL--" (entrada por defecto) e "--INFORME--" siempre primero, antes de los
+  // workspaces reales.
   const workspaceOptions = useMemo(
-    () => [GENERAL_WORKSPACE, ...(isSuccess(workspaces.state) ? workspaces.state.data : [])],
+    () => [
+      GENERAL_WORKSPACE,
+      INFORME_WORKSPACE,
+      ...(isSuccess(workspaces.state) ? workspaces.state.data : []),
+    ],
     [workspaces.state],
   )
   // Filtramos por el workspace actual: al cambiar de workspace, `datasets.state`
@@ -242,15 +255,15 @@ function Shell() {
               label="Workspace"
               value={selection.selectedWorkspaceId}
               options={workspaceOptions}
-              specialIds={[GENERAL_ID]}
+              specialIds={[GENERAL_ID, INFORME_ID]}
               onChange={selection.selectWorkspace}
             />
             <TopSelect
               label="Modelo"
               value={selection.selectedDatasetId}
               options={datasetOptions}
-              loading={!isGeneral && !!selection.selectedWorkspaceId && !isSuccess(datasets.state)}
-              disabled={isGeneral || !selection.selectedWorkspaceId}
+              loading={!isSpecial && !!selection.selectedWorkspaceId && !isSuccess(datasets.state)}
+              disabled={isSpecial || !selection.selectedWorkspaceId}
               onChange={selection.selectDataset}
             />
             {kpis ? (
@@ -274,6 +287,10 @@ function Shell() {
         {isGeneral ? (
           <section className={styles.welcomeArea}>
             <WelcomeGuide />
+          </section>
+        ) : isInforme ? (
+          <section className={styles.welcomeArea}>
+            <InformePanel />
           </section>
         ) : (
           <>

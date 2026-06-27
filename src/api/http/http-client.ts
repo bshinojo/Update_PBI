@@ -7,6 +7,7 @@ import type {
   CreateScheduleInput,
   Dataset,
   HealthStatus,
+  Report,
   RunRecord,
   Schedule,
   ScheduleMutationResult,
@@ -53,6 +54,9 @@ export class HttpScheduleApi implements ScheduleApi {
   }
   listRuns(scheduleId: string, limit = 20) {
     return this.request<RunRecord[]>(`/schedules/${scheduleId}/runs?limit=${limit}`)
+  }
+  getReport(limit = 50) {
+    return this.request<Report>(`/report?limit=${limit}`)
   }
   getHealth() {
     return this.request<HealthStatus>('/health')

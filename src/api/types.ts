@@ -118,6 +118,45 @@ export interface RunRecord {
   error?: string
 }
 
+/**
+ * Una fila del informe global (GET /report): una actualización terminada (del
+ * historial) o una EN CURSO (del scheduler). Como las en curso no terminaron,
+ * `finishedAt` es opcional; y trae los nombres legibles de workspace/modelo
+ * (resueltos en el backend, ausentes si no se pudieron leer).
+ */
+export interface ReportRun {
+  scheduleId: string
+  datasetId: string
+  workspaceId: string
+  workspaceName?: string
+  datasetName?: string
+  tables: string[]
+  refreshType: string
+  refreshId?: string
+  status: RunStatus
+  /** ISO 8601. */
+  startedAt: string
+  /** ISO 8601; ausente mientras está En curso. */
+  finishedAt?: string
+  error?: string
+}
+
+/** Contadores de programaciones para el resumen del informe. */
+export interface ScheduleCounts {
+  total: number
+  /** Habilitadas (las dispara el scheduler). */
+  active: number
+  /** Deshabilitadas (pausadas). */
+  paused: number
+}
+
+/** Respuesta de GET /report: lo que necesita la vista --INFORME--. */
+export interface Report {
+  schedules: ScheduleCounts
+  /** Últimas actualizaciones: las En curso primero, luego el historial. */
+  runs: ReportRun[]
+}
+
 /** Estado del backend + su scheduler (GET /health). */
 export interface HealthStatus {
   status: string

@@ -282,3 +282,85 @@ def test_runs_history_endpoint(client, tmp_path):
         assert client.get("/schedules/sch-2/runs").json() == []
     finally:
         app.dependency_overrides.pop(get_runlog, None)
+
+
+# --- Informe global (GET /report) ---
+
+
+def test_report_counts_and_history(client, tmp_path):
+    from app.dependencies import get_runlog
+    from app.runlog import RunLog
+
+    rl = RunLog(str(tmp_path / "runs.jsonl"))
+    base = {"tables": ["Ventas"], "refreshType": "full", "refreshId": "r1"}
+    rl.append(base | {"scheduleId": "sch-1", "datasetId": "ds-ventas-retail",
+                      "workspaceId": "ws-ventas", "status": "Completed",
+                      "startedAt": "2026-06-09T06:00:00-03:00",
+                      "finishedAt": "2026-06-09T06:04:00-03:00"})
+    rl.append(base | {"scheduleId": "sch-3", "datasetId": "ds-pyl",
+                      "workspaceId": "ws-finanzas", "status": "Failed",
+                      "startedAt": "2026-06-10T01:00:00-03:00",
+                      "finishedAt": "2026-06-10T01:01:00-03:00", "error": "Sin permisos"})
+    app.dependency_overrides[get_runlog] = lambda: rl
+    try:
+        body = client.get("/report").json()
+        # Contadores de programaciones (seed: 6, sch-5 pausada).
+        assert body["schedules"] == {"total": 6, "active": 5, "paused": 1}
+        runs = body["runs"]
+        # Más reciente primero (la Failed del 10/06 antes que la Completed del 09/06).
+        assert [x["status"] for x in runs] == ["Failed", "Completed"]
+        # Nombres legibles resueltos desde la fuente de datos (no ids crudos).
+        assert runs[0]["datasetName"] == "P&L Consolidado"
+        assert runs[0]["workspaceName"] == "Finanzas"
+        assert runs[0]["error"] == "Sin permisos"
+        assert runs[1]["datasetName"] == "Ventas Retail"
+        assert "error" not in runs[1]  # None excluido del JSON
+        # limit acota.
+        assert len(client.get("/report?limit=1").json()["runs"]) == 1
+    finally:
+        app.dependency_overrides.pop(get_runlog, None)
+
+
+def test_report_merges_in_progress_first(tmp_path):
+    # Una actualización EN CURSO (en memoria del scheduler) aparece en el informe,
+    # arriba del historial terminado, con finishedAt ausente.
+    from app.config import Settings
+    from app.dependencies import get_runlog, get_scheduler
+    from app.executor import PollResult
+    from app.runlog import RunLog
+    from app.scheduler import Scheduler
+
+    class _Exec:
+        def start(self, schedule):
+            return "r-live"  # async -> queda InProgress en _pending
+
+        def poll(self, schedule, token):
+            return PollResult("InProgress")
+
+    ds = FakeDataSource()
+    store = ScheduleStore(str(tmp_path / "db.json"), ds)
+    store._schedules = seed_schedules()
+    store._save()
+    rl = RunLog(str(tmp_path / "runs.jsonl"))
+    rl.append({"scheduleId": "sch-1", "datasetId": "ds-ventas-retail",
+               "workspaceId": "ws-ventas", "tables": ["Ventas"], "refreshType": "full",
+               "status": "Completed", "startedAt": "2026-06-09T06:00:00-03:00",
+               "finishedAt": "2026-06-09T06:04:00-03:00"})
+    sched = Scheduler(store, _Exec(), Settings(scheduler_enabled=False))
+    sched.run_now("sch-3")  # dispara a demanda -> _pending tiene sch-3 InProgress
+
+    app.dependency_overrides[get_store] = lambda: store
+    app.dependency_overrides[get_datasource] = lambda: ds
+    app.dependency_overrides[get_runlog] = lambda: rl
+    app.dependency_overrides[get_scheduler] = lambda: sched
+    try:
+        with TestClient(app) as c:
+            runs = c.get("/report").json()["runs"]
+            assert len(runs) == 2
+            # La En curso primero (su startedAt es "ahora", > el finishedAt histórico).
+            assert runs[0]["status"] == "InProgress" and runs[0]["scheduleId"] == "sch-3"
+            assert "finishedAt" not in runs[0]  # aún no terminó -> None excluido
+            assert runs[0]["datasetName"] == "P&L Consolidado"
+            assert runs[1]["status"] == "Completed"
+    finally:
+        app.dependency_overrides.clear()

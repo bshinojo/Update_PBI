@@ -16,6 +16,7 @@ logger = logging.getLogger("pbi.runlog")
 class RunLogger(Protocol):
     def append(self, record: dict) -> None: ...
     def tail(self, schedule_id: str, limit: int = 20) -> list[dict]: ...
+    def tail_all(self, limit: int = 50) -> list[dict]: ...
 
 
 class RunLog:
@@ -55,6 +56,29 @@ class RunLog:
                 out.append(rec)
         return out[-limit:][::-1]
 
+    def tail_all(self, limit: int = 50) -> list[dict]:
+        """Últimas `limit` corridas de TODOS los schedules, la más reciente primero
+        (orden por finishedAt, con fallback a startedAt). Alimenta el informe global.
+        Lee el archivo entero (a esta escala alcanza); las líneas ilegibles se saltean."""
+        try:
+            with self._lock:
+                if not self._path.exists():
+                    return []
+                lines = self._path.read_text(encoding="utf-8").splitlines()
+        except Exception:  # noqa: BLE001 - leer el historial nunca debe tirar la API
+            logger.exception("No se pudo leer el run log en %s", self._path)
+            return []
+        recs: list[dict] = []
+        for line in lines:
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(rec, dict):
+                recs.append(rec)
+        recs.sort(key=lambda r: r.get("finishedAt") or r.get("startedAt") or "", reverse=True)
+        return recs[:limit]
+
 
 class NullRunLog:
     """No-op (para tests o si se quiere desactivar el historial)."""
@@ -63,4 +87,7 @@ class NullRunLog:
         pass
 
     def tail(self, schedule_id: str, limit: int = 20) -> list[dict]:
+        return []
+
+    def tail_all(self, limit: int = 50) -> list[dict]:
         return []

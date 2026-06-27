@@ -194,6 +194,40 @@ class RunRecord(CamelModel):
     error: Optional[str] = None
 
 
+class ReportRun(CamelModel):
+    """Una fila del informe global (GET /report): una corrida TERMINADA (de
+    runs.jsonl) o una EN CURSO (del scheduler). Igual que RunRecord pero finishedAt
+    es opcional (las en curso no terminaron) y agrega los nombres legibles de
+    workspace/modelo, que el record en disco no guarda (solo ids)."""
+
+    schedule_id: str
+    dataset_id: str
+    workspace_id: str
+    workspace_name: Optional[str] = None
+    dataset_name: Optional[str] = None
+    tables: list[str]
+    refresh_type: str
+    refresh_id: Optional[str] = None
+    status: RunStatus
+    started_at: str  # ISO 8601
+    finished_at: Optional[str] = None  # ausente mientras está En curso
+    error: Optional[str] = None
+
+
+class ScheduleCounts(CamelModel):
+    total: int
+    active: int  # habilitados (los dispara el scheduler)
+    paused: int  # deshabilitados
+
+
+class Report(CamelModel):
+    """Lo que necesita la vista --INFORME--: contadores de programaciones + las
+    últimas actualizaciones (las En curso primero, luego el historial)."""
+
+    schedules: ScheduleCounts
+    runs: list[ReportRun]
+
+
 class ScheduleMutationResult(CamelModel):
     # El schedule creado o actualizado; None si fue eliminado.
     affected: Optional[Schedule] = None

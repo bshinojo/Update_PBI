@@ -206,6 +206,28 @@ class Scheduler:
         nunca se pollearía y quedaría InProgress)."""
         return self._thread is not None
 
+    def current_runs(self) -> list[dict]:
+        """Snapshot de los refreshes EN CURSO (todavía no están en runs.jsonl: viven
+        en memoria). Devuelve dicts con el MISMO shape que el historial pero status
+        'InProgress' y sin finishedAt — para que el informe global muestre lo que está
+        corriendo ahora mismo. Thread-safe (comparte _op_lock con tick/run_now)."""
+        with self._op_lock:
+            return [
+                {
+                    "scheduleId": p.schedule.id,
+                    "datasetId": p.schedule.dataset_id,
+                    "workspaceId": p.schedule.workspace_id,
+                    "tables": list(p.schedule.tables),
+                    "refreshType": p.schedule.refresh_type,
+                    "refreshId": p.token,
+                    "status": "InProgress",
+                    "startedAt": p.started_at.isoformat(timespec="seconds"),
+                    "finishedAt": None,
+                    "error": None,
+                }
+                for p in self._pending.values()
+            ]
+
     def _fire(self, sch: Schedule, now: datetime) -> None:
         ts = now.isoformat(timespec="seconds")
         # Marcamos "En curso" antes de disparar.

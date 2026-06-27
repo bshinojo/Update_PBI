@@ -5,6 +5,7 @@ import type {
   CreateScheduleInput,
   Dataset,
   HealthStatus,
+  Report,
   RunRecord,
   Schedule,
   ScheduleMutationResult,
@@ -20,6 +21,9 @@ export interface ScheduleApi {
   listSchedules(datasetId: string): Promise<Schedule[]>
   /** Historial de corridas terminadas del schedule (la más reciente primero). */
   listRuns(scheduleId: string, limit?: number): Promise<RunRecord[]>
+  /** Informe global: contadores de programaciones + últimas actualizaciones (en
+   * curso + historial), para la vista --INFORME--. */
+  getReport(limit?: number): Promise<Report>
   /** Salud del backend + su scheduler (para el indicador del header). */
   getHealth(): Promise<HealthStatus>
 

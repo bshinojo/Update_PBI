@@ -84,9 +84,11 @@ src/
     index.ts      Expone `api` = HttpScheduleApi (única implementación).
     http/         http-client.ts → HttpScheduleApi (baseUrl '/api', contra FastAPI)
   domain/         Lógica pura: frequency.ts (LAST_DAY=-1, formatFrequency, scheduleTime),
-                  labels.ts (textos español, semana Lunes-primero), assert-never.ts
+                  labels.ts (textos español, semana Lunes-primero), assert-never.ts,
+                  report.ts (summarizeRuns + activityByDay para la vista --INFORME--)
   hooks/          useRemoteData (guard de respuestas obsoletas) → useWorkspaces/useDatasets/useTables;
-                  useHealth (pollea /health p/ el header), useRuns (historial del schedule en edición)
+                  useHealth (pollea /health p/ el header), useRuns (historial del schedule en edición),
+                  useReport (pollea /report p/ la vista --INFORME--, cada 15s)
   state/          SelectionContext.tsx (reducer: workspace/dataset elegidos + tablas tildadas)
   components/     AppHeader (barra superior NAVY de marca RFDD: logo invertido + watermark de
                   olas + título serif "Programador de Actualizaciones" + pill de salud del
@@ -94,6 +96,9 @@ src/
                   TopSelect (selectores del header), TablesPanel(+TableRow),
                   KpiStrip (KPI tiles del modelo; CLICKEABLES: filtran la tabla por estado),
                   UpcomingRuns (próximas 3 ejecuciones del modelo, de nextRunAt),
+                  InformePanel/ (vista --INFORME--: ReportSummary = tiles de estado +
+                  contadores de programaciones + barra de actividad; RunsTable = tabla de
+                  las últimas actualizaciones, más recientes primero),
                   ScheduleForm/ (SchedulePanel = rail lateral + FrequencyFields + useScheduleForm),
                   ScheduleBadge, StatusIndicator, y primitivos en common/ (Icon, Skeleton,
                   EmptyState, ColumnHeader = banda de título común a las 3 columnas)
@@ -103,6 +108,10 @@ src/
                   Acá viven: cálculo de KPIs, filtro por estado (KPI tiles), modo edición de
                   membresía (editTables), stash/restore de la selección al entrar/cancelar
                   edición, y el flash de éxito. Auto-selecciona el primer workspace/modelo.
+                  Entradas sintéticas del combobox de Workspace (no son de Power BI, van
+                  primero): --GENERAL-- (instructivo, WelcomeGuide) y --INFORME-- (historial
+                  global, InformePanel); ambas ocupan las columnas 2-3 (.welcomeArea) y no
+                  cargan modelos (isSpecial = isGeneral || isInforme).
 ```
 
 **Regla de oro del seam:** ningún archivo fuera de `src/api/` debe importar de `api/http/`.
@@ -240,9 +249,10 @@ un backend real con latencia.
   `public/favicon.svg`.
 - `npm run typecheck` y `npm run build` limpios. Build estático servible por nginx
   (`nginx.example.conf` incluido). Verificado en navegador real contra el backend.
-- **Tests unitarios del front (Vitest, `npm run test`): 30, todo verde.** Cubren la lógica pura:
+- **Tests unitarios del front (Vitest, `npm run test`): 36, todo verde.** Cubren la lógica pura:
   `domain/frequency.ts` (`formatFrequency`, `scheduleTime`, `hourlyIntervalMinutes`, `formatHour`),
-  `domain/time.ts` (`formatRelativeTime`, `formatNextRun`, `formatRunDuration`) y la validación
+  `domain/time.ts` (`formatRelativeTime`, `formatNextRun`, `formatRunDuration`),
+  `domain/report.ts` (`summarizeRuns`, `activityByDay`) y la validación
   `ScheduleForm/useScheduleForm.buildFrequency` (todas las frecuencias + bordes).
 - **Pulido UX (paquete 3)**: la tabla tiene **filtro por nombre** (input en el encabezado de la
   columna, sin acentos/mayúsculas; "Seleccionar todas" opera sobre las VISIBLES sin pisar la
@@ -251,7 +261,7 @@ un backend real con latencia.
   lo mantiene fresco). Los **errores del rail van arriba** (pegados al header donde vive el CTA).
   El copy del `WelcomeGuide` se corrigió (ya no menciona el selector de tipo de refresh
   eliminado).
-- **Backend FastAPI (etapa A, ver §6.A): implementado en `backend/`.** Los 10 endpoints del
+- **Backend FastAPI (etapa A, ver §6.A): implementado en `backend/`.** Los 11 endpoints del
   contrato, JSON camelCase idéntico a `types.ts` (sin mapeo en `http-client.ts`), persistencia
   en archivo JSON, reasignación + invariante, validación de inputs. **Power BI-only**: requiere
   credenciales por `.env` (sin ellas no arranca). Probado de punta a punta con `TestClient` (con
@@ -265,7 +275,7 @@ un backend real con latencia.
   / strings de estado; ver §6.B).
 - **Tooling**: ESLint (flat config, reglas de hooks de React) con `npm run lint`; **CI** en
   `.github/workflows/ci.yml` corre en cada push/PR a `main` el frontend (lint + typecheck + test +
-  build) y el backend (pytest). Suite total: **72 pytest + 30 vitest**, todo verde sin credenciales.
+  build) y el backend (pytest). Suite total: **77 pytest + 36 vitest**, todo verde sin credenciales.
 - **Guía de deploy en `DEPLOY.md`** (pedida por el usuario 2026-06-10): VPS Hetzner desde cero —
   server + hardening SSH/ufw, stack, clone/build, `.env` y datos en `/var/lib/pbi`, systemd
   (`pbi-api`, 1 worker), nginx, verificación end-to-end y **WireGuard** como control de acceso
@@ -291,6 +301,7 @@ Implementa el contrato `ScheduleApi` (ver `src/api/client.ts`). El cliente
 | GET | `/datasets/{datasetId}/tables` | — | `TableInfo[]` |
 | GET | `/datasets/{datasetId}/schedules` | — | `Schedule[]` |
 | GET | `/schedules/{id}/runs?limit=N` | — | `RunRecord[]` (historial, la más reciente primero; de `runs.jsonl`) |
+| GET | `/report?limit=N` | — | `Report` (`{ schedules: {total,active,paused}, runs: ReportRun[] }`) — informe GLOBAL de la vista --INFORME-- |
 | POST | `/schedules` | `CreateScheduleInput` | `ScheduleMutationResult` |
 | PATCH | `/schedules/{id}` | `UpdateScheduleInput` | `ScheduleMutationResult` (acepta `tables`) |
 | PUT | `/schedules/{id}/enabled` | `{ enabled }` | `ScheduleMutationResult` (switch "Habilitado" en edición) |
@@ -388,6 +399,17 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
   **blindado** —si falla escribir, no corta el scheduler; `tail()` lo lee para
   `GET /schedules/{id}/runs`). `lastRun` (en `schedules.json`) guarda solo el ÚLTIMO run por
   schedule; `runs.jsonl` es el histórico completo.
+- **Informe global (`GET /report`, vista --INFORME--)**: junta los **contadores** de
+  programaciones (`store.all_schedules` → total/activas/en pausa) con las últimas N
+  actualizaciones. Las **terminadas** salen de `runs.jsonl` (`runlog.tail_all`, orden por
+  `finishedAt`/`startedAt` desc) y las **En curso** del scheduler en memoria
+  (`scheduler.current_runs()`, status `InProgress` sin `finishedAt`); se mergean, ordenan desc y
+  recortan a `limit`. Cada fila (`ReportRun`) se enriquece con el **nombre legible** de
+  workspace/modelo (`routes._resolve_names`, best-effort vía la DataSource; si falla, cae al id —
+  el record en disco solo guarda ids). `finishedAt` es opcional en `ReportRun` (las En curso no
+  terminaron). El front lo pollea cada 15s (`useReport`) para que lo En curso se resuelva solo en
+  pantalla. **OJO:** `runs.jsonl` arranca vacío (ningún refresh real terminó aún), así que la tabla
+  está vacía hasta que corra/falle una actualización; los fallos SÍ se registran.
 - **Health del scheduler**: el loop registra el último tick; `GET /health` devuelve
   `{ status, scheduler: { running, lastTickAt, healthy } }` (`healthy=False` si el hilo no corre o
   el último tick quedó viejo) → monitoreable desde el VPS aunque la API siga viva, y **visible en
@@ -399,9 +421,9 @@ Worker en segundo plano que corre en el MISMO proceso que la API (arranca/para c
   (disparo, polling InProgress→Completed/Failed, timeout, no re-disparo en vuelo, serialización
   por dataset, captura del motivo de fallo), executor (mapeo de estados + propagación del error),
   cliente PBI (`get_refresh_detail` con messages/serviceExceptionJson), runlog (`tail` filtrado y
-  ordenado), los 10 endpoints (incl. `/runs` y `nextRunAt` derivado/no persistido), y el health
-  del scheduler. Corren **sin credenciales** con una `FakeDataSource` (`tests/_fixtures.py`).
-  72 tests, todo verde.
+  `tail_all` global ordenado por fecha), los 11 endpoints (incl. `/runs`, `/report` con merge de
+  En curso + nombres resueltos, y `nextRunAt` derivado/no persistido), y el health del scheduler.
+  Corren **sin credenciales** con una `FakeDataSource` (`tests/_fixtures.py`). 77 tests, todo verde.
 - **Validación de inputs (paquete "robustez")**: los modelos de input (`models.py`) validan rangos
   además de la UI (defensa en profundidad, porque la API no tiene auth): `time` "HH:mm",
   `startHour/endHour` 0–23 (y desde≤hasta), `daysOfWeek` 0–6, `dayOfMonth` 1–28 o -1, y ≥1 tabla

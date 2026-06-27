@@ -3,6 +3,7 @@
 # response_model_exclude_none: omitimos los campos None (scheduleId, lastRun, affected,
 # nextRunAt) para que los opcionales de TS (`?`) vayan ausentes cuando no aplican.
 # El front los trata por truthiness en ambos casos.
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -16,8 +17,11 @@ from .scheduler import AlreadyRunningError, Scheduler
 from .models import (
     CreateScheduleInput,
     Dataset,
+    Report,
+    ReportRun,
     RunRecord,
     Schedule,
+    ScheduleCounts,
     ScheduleMutationResult,
     SetEnabledInput,
     TableInfo,
@@ -25,6 +29,8 @@ from .models import (
     Workspace,
 )
 from .store import NotFoundError, ScheduleStore
+
+logger = logging.getLogger("pbi.routes")
 
 router = APIRouter()
 
@@ -42,6 +48,33 @@ def _with_next_run(schedule: Schedule | None) -> Schedule | None:
 def _result_with_next_run(result: ScheduleMutationResult) -> ScheduleMutationResult:
     _with_next_run(result.affected)
     return result
+
+
+def _resolve_names(ds: DataSource, runs: list[dict]) -> None:
+    """Completa `workspaceName`/`datasetName` en cada run del informe (in place,
+    best-effort). El historial en disco guarda solo ids; los nombres se resuelven acá,
+    que es el único lugar con acceso a Power BI. Si la lectura falla (red/RLS/permisos),
+    se deja el campo ausente y el front cae al id — el informe nunca rompe por esto."""
+    if not runs:
+        return
+    ws_names: dict[str, str] = {}
+    try:
+        for w in ds.list_workspaces():
+            ws_names[w.id] = w.name
+    except Exception:  # noqa: BLE001 - resolver nombres es decorativo, nunca crítico
+        logger.exception("No se pudieron resolver nombres de workspace para el informe")
+    ds_names: dict[str, str] = {}
+    for ws_id in {r.get("workspaceId") for r in runs if r.get("workspaceId")}:
+        try:
+            for d in ds.list_datasets(ws_id):
+                ds_names[d.id] = d.name
+        except Exception:  # noqa: BLE001
+            logger.exception("No se pudieron resolver nombres de modelo del workspace %s", ws_id)
+    for r in runs:
+        if ws_names.get(r.get("workspaceId")):
+            r["workspaceName"] = ws_names[r["workspaceId"]]
+        if ds_names.get(r.get("datasetId")):
+            r["datasetName"] = ds_names[r["datasetId"]]
 
 
 @router.get("/workspaces", response_model=list[Workspace])
@@ -97,6 +130,39 @@ def list_schedule_runs(
         except ValueError:
             continue  # línea de una versión vieja del log: mejor saltearla que romper
     return out
+
+
+@router.get("/report", response_model=Report, response_model_exclude_none=True)
+def get_report(
+    limit: int = Query(default=50, ge=1, le=200),
+    store: ScheduleStore = Depends(get_store),
+    runlog: RunLogger = Depends(get_runlog),
+    scheduler: Scheduler = Depends(get_scheduler),
+    ds: DataSource = Depends(get_datasource),
+):
+    """Informe global de la vista --INFORME--: contadores de programaciones (total /
+    activas / en pausa) + las últimas `limit` actualizaciones, las EN CURSO primero
+    (del scheduler, en memoria) y luego el HISTORIAL terminado (runs.jsonl), ordenadas
+    por fecha desc. Cada fila trae el nombre legible de workspace/modelo (best-effort)."""
+    schedules = store.all_schedules()
+    active = sum(1 for s in schedules if s.enabled)
+    counts = ScheduleCounts(total=len(schedules), active=active, paused=len(schedules) - active)
+
+    # En curso (memoria) + historial terminado (disco), más recientes primero. Las En
+    # curso no tienen finishedAt, así que el sort cae a startedAt: quedan arriba.
+    merged = scheduler.current_runs() + runlog.tail_all(limit=limit)
+    merged.sort(key=lambda r: r.get("finishedAt") or r.get("startedAt") or "", reverse=True)
+    merged = merged[:limit]
+
+    _resolve_names(ds, merged)
+
+    runs: list[ReportRun] = []
+    for rec in merged:
+        try:
+            runs.append(ReportRun.model_validate(rec))
+        except ValueError:
+            continue  # línea de una versión vieja del log: saltearla, no romper
+    return Report(schedules=counts, runs=runs)
 
 
 @router.post(
