@@ -1,3 +1,5 @@
 # Dependencias solo para correr los tests. En producción no hacen falta.
 -r requirements.txt
 pytest>=8.0
+# Starlette >=1.2 TestClient prefiere httpx2; sin él, cae a httpx y avisa deprecación.
+httpx2>=2.5,<3.0
